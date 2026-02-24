@@ -83,11 +83,10 @@ export const Sidebar: React.FC = () => {
               killSession(session.id);
             }
           }}
-          className={`w-full text-left px-3 py-2 rounded-lg mb-0.5 transition-all duration-150 group relative overflow-hidden ${
-            isActive
+          className={`w-full text-left px-3 py-2 rounded-lg mb-0.5 transition-all duration-150 group relative overflow-hidden ${isActive
               ? 'glass-1'
               : 'hover:bg-vz-border/20 border border-transparent'
-          }`}
+            }`}
           style={isActive ? { borderColor: agentColor + '30' } : undefined}
         >
           {/* Active session left accent bar */}
@@ -125,11 +124,10 @@ export const Sidebar: React.FC = () => {
 
             {/* Status dot */}
             <span
-              className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                session.status === 'working' || session.status === 'waiting'
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${session.status === 'working' || session.status === 'waiting'
                   ? 'pulse-dot'
                   : ''
-              }`}
+                }`}
               style={{ backgroundColor: STATUS_COLORS[session.status] }}
               title={session.status}
             />
@@ -145,37 +143,36 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="w-60 h-full flex flex-col bg-vz-surface/40 border-r border-vz-border">
+    <div className="w-60 h-full flex flex-col glass-card border-none mr-4">
       {/* Logo area */}
-      <div className="px-4 py-3 border-b border-vz-border">
+      <div className="px-4 py-3 border-b border-vz-border/50 relative z-10">
         <h1
           className="font-display text-2xl font-bold tracking-widest text-vz-cyan"
           style={{
-            textShadow: '0 0 20px rgba(0,204,255,0.5), 0 0 40px rgba(0,204,255,0.2)',
+            textShadow: '0 0 20px rgba(0,240,255,0.6), 0 0 40px rgba(0,240,255,0.3)',
             animation: 'float-gentle 4s ease-in-out infinite',
           }}
         >
           VIBEZONE
         </h1>
-        <p className="text-[10px] text-vz-muted mt-0.5 tracking-[0.2em]">
+        <p className="text-[10px] text-vz-muted mt-0.5 tracking-[0.2em] font-mono">
           COMMAND CENTER
         </p>
       </div>
 
       {/* New Agent button */}
-      <div className="px-3 py-2 space-y-1.5">
+      <div className="px-4 py-4 space-y-2 relative z-10">
         <button
           onClick={() => setCreateAgentModalOpen(true)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-vz-cyan rounded-lg transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-vz-cyan rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.98] group"
           style={{
-            background: 'linear-gradient(135deg, rgba(0,204,255,0.08), rgba(139,92,246,0.05))',
-            border: '1px solid transparent',
-            borderImage: 'linear-gradient(135deg, rgba(0,204,255,0.4), rgba(139,92,246,0.4)) 1',
-            borderImageSlice: 1,
+            background: 'linear-gradient(135deg, rgba(0,240,255,0.1), rgba(178,0,255,0.05))',
+            border: '1px solid rgba(0,240,255,0.3)',
+            boxShadow: '0 0 15px rgba(0,240,255,0.15), inset 0 0 10px rgba(0,240,255,0.05)'
           }}
         >
           {/* Hexagon icon */}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:drop-shadow-[0_0_8px_rgba(0,240,255,0.8)] transition-all">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
             <line x1="12" y1="8" x2="12" y2="16" />
             <line x1="8" y1="12" x2="16" y2="12" />
@@ -184,7 +181,7 @@ export const Sidebar: React.FC = () => {
         </button>
         <button
           onClick={quickCreateShell}
-          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-vz-green/80 rounded-lg transition-all hover:bg-vz-green/8 hover:text-vz-green border border-vz-border hover:border-vz-green/25"
+          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-vz-green/80 rounded-xl transition-all duration-300 hover:bg-vz-green/10 hover:text-vz-green border border-vz-border/50 hover:border-vz-green/40 hover:shadow-neon-green"
           title="Hizli Terminal Ac (Ctrl+Shift+T)"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -196,7 +193,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Session list */}
-      <div className="flex-1 overflow-y-auto px-2 py-1">
+      <div className="flex-1 overflow-y-auto px-2 py-1 relative z-10">
         {/* Terminal Agents */}
         {terminalSessions.length > 0 && (
           <>

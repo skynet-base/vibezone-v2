@@ -182,36 +182,22 @@ export const TerminalPanel: React.FC = () => {
     <AnimatePresence>
       {terminalOpen && sessions.length > 0 && (
         <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: terminalHeight, opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="relative flex flex-col bg-vz-bg border-t border-vz-border"
+          className="relative flex flex-col h-full rounded-2xl overflow-hidden glass-card group transition-shadow duration-500"
+          style={{
+            boxShadow: activeSession ? `0 0 20px ${AGENT_COLORS[activeSession.agentType] || '#00ccff'}30, inset 0 0 10px ${AGENT_COLORS[activeSession.agentType] || '#00ccff'}10` : 'var(--glass-shadow)',
+            border: activeSession ? `1px solid ${AGENT_COLORS[activeSession.agentType] || '#00ccff'}40` : ''
+          }}
           ref={containerRef}
         >
-          {/* Resize handle */}
-          <div
-            className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-10 group"
-            onMouseDown={handleResizeStart}
-          >
-            <div
-              className="absolute inset-x-0 top-0 h-px bg-vz-border group-hover:h-[2px] transition-all"
-              style={{
-                boxShadow: 'none',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = '#00ccff';
-                (e.currentTarget as HTMLElement).style.boxShadow = '0 0 8px rgba(0,204,255,0.5)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = '';
-                (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-              }}
-            />
-          </div>
+          {/* Subtle mesh overlay to match app style */}
+          <div className="absolute inset-0 bg-mesh-glow opacity-30 pointer-events-none z-0"></div>
 
           {/* Tab bar */}
-          <div className="flex items-center h-8 bg-vz-bg px-2 gap-1 overflow-x-auto flex-shrink-0 border-b border-vz-border/50">
+          <div className="relative z-10 flex items-center h-10 bg-vz-surface-2/40 backdrop-blur-md px-3 gap-2 overflow-x-auto flex-shrink-0 border-b border-vz-border/50">
             {sessions.map((session) => {
               const agentColor = AGENT_COLORS[session.agentType] || '#5a5a78';
               const isActiveTab = activeSessionId === session.id;
@@ -220,24 +206,25 @@ export const TerminalPanel: React.FC = () => {
                 <button
                   key={session.id}
                   onClick={() => setActiveSession(session.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs whitespace-nowrap transition-all ${
-                    isActiveTab
-                      ? 'text-vz-text'
-                      : 'text-vz-muted hover:text-vz-text hover:bg-vz-border/20'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ${isActiveTab
+                    ? 'text-vz-text'
+                    : 'text-vz-muted hover:text-vz-text hover:bg-vz-surface-2'
+                    }`}
                   style={isActiveTab ? {
-                    backgroundColor: agentColor + '18',
-                    boxShadow: `inset 0 0 12px ${agentColor}10`,
-                  } : undefined}
+                    backgroundColor: agentColor + '20',
+                    border: `1px solid ${agentColor}50`,
+                    boxShadow: `0 0 10px ${agentColor}30, inset 0 0 5px ${agentColor}20`,
+                  } : { border: '1px solid transparent' }}
                 >
                   <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: STATUS_COLORS[session.status] || '#6b7280' }}
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: STATUS_COLORS[session.status] || '#6b7280', boxShadow: `0 0 5px ${STATUS_COLORS[session.status] || '#6b7280'}` }}
                   />
                   <span
                     className="font-medium"
                     style={{
                       color: isActiveTab ? agentColor : undefined,
+                      textShadow: isActiveTab ? `0 0 8px ${agentColor}80` : undefined
                     }}
                   >
                     {session.name}
@@ -250,32 +237,31 @@ export const TerminalPanel: React.FC = () => {
             <div className="flex-1" />
             <button
               onClick={toggleChat}
-              className={`p-1 rounded transition-colors ${
-                chatOpen
-                  ? 'bg-vz-cyan/15 text-vz-cyan'
-                  : 'text-vz-muted hover:text-vz-cyan hover:bg-vz-cyan/10'
-              }`}
+              className={`p-1.5 rounded-lg transition-all duration-300 ${chatOpen
+                ? 'bg-vz-cyan/20 text-vz-cyan neon-border-cyan'
+                : 'text-vz-muted hover:text-vz-cyan hover:bg-vz-surface-2'
+                }`}
               title="Chat Paneli"
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
             <button
               onClick={quickCreateShell}
-              className="p-1 rounded hover:bg-vz-green/15 text-vz-muted hover:text-vz-green transition-colors"
+              className="p-1.5 rounded-lg hover:bg-vz-green/20 text-vz-muted hover:text-vz-green transition-all duration-300 hover:neon-border-green"
               title="Yeni Terminal (Ctrl+Shift+T)"
             >
-              <svg width="10" height="10" viewBox="0 0 12 12">
+              <svg width="12" height="12" viewBox="0 0 12 12">
                 <path d="M6 1V11M1 6H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
             <button
               onClick={toggleTerminal}
-              className="p-1 rounded hover:bg-vz-red/15 text-vz-muted hover:text-vz-red transition-colors hover:shadow-neon-pink"
+              className="p-1.5 rounded-lg hover:bg-vz-red/20 text-vz-muted hover:text-vz-red transition-all duration-300 hover:neon-border-pink"
               title="Terminal Kapat (Ctrl+`)"
             >
-              <svg width="10" height="10" viewBox="0 0 12 12">
+              <svg width="12" height="12" viewBox="0 0 12 12">
                 <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
@@ -283,22 +269,22 @@ export const TerminalPanel: React.FC = () => {
 
           {/* Info bar */}
           {activeSession && (
-            <div className="flex items-center h-5 px-3 gap-2 bg-vz-bg-elevated/50 border-b border-vz-border/30 flex-shrink-0">
+            <div className="relative z-10 flex items-center h-6 px-4 gap-2 bg-vz-surface-2/20 backdrop-blur-sm border-b border-vz-border/30 flex-shrink-0">
               <span
                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: STATUS_COLORS[activeSession.status] || '#6b7280' }}
               />
               <span
-                className="text-[10px] font-medium"
+                className="text-[10px] font-medium tracking-wide uppercase"
                 style={{ color: AGENT_COLORS[activeSession.agentType] }}
               >
                 {activeSession.name}
               </span>
-              <span className="text-[10px] text-vz-muted">
+              <span className="text-[10px] text-vz-muted uppercase tracking-wider">
                 {activeSession.status}
               </span>
-              <div className="w-px h-2.5 bg-vz-border" />
-              <span className="text-[10px] text-vz-muted font-mono truncate">
+              <div className="w-px h-2.5 bg-vz-border/50" />
+              <span className="text-[10px] text-vz-muted font-mono truncate opacity-60 hover:opacity-100 transition-opacity">
                 {activeSession.cwd}
               </span>
             </div>

@@ -97,51 +97,65 @@ const App: React.FC = () => {
       {/* Top bar (frameless titlebar) */}
       <TopBar />
 
-      {/* Main content area - no-drag ensures all child elements are interactive */}
-      <div className="flex flex-1 overflow-hidden no-drag">
-        {/* Left sidebar */}
-        <Sidebar />
+      {/* Main content area - Bento Grid Setup */}
+      <div className="flex-1 w-full p-4 overflow-hidden no-drag">
 
-        {/* Center area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Tab bar */}
-          <div className="flex items-center gap-1 px-3 py-1.5 bg-vz-surface/30 backdrop-blur-sm border-b border-vz-border/50">
-            {TAB_CONFIG.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveView(tab.id)}
-                className={`relative flex items-center gap-1.5 px-4 py-1.5 text-sm font-display transition-all ${
-                  activeView === tab.id
-                    ? 'text-vz-cyan'
-                    : 'text-vz-muted hover:text-vz-text'
-                }`}
-              >
-                <TabIcon tabId={tab.id} active={activeView === tab.id} />
-                <span>{tab.label}</span>
-                {activeView === tab.id && (
-                  <span
-                    className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
-                    style={{ background: 'linear-gradient(90deg, #00ccff, #8b5cf6)' }}
-                  />
-                )}
-              </button>
-            ))}
+        {/* The Bento Container */}
+        <div className="w-full h-full grid gap-4" style={{
+          gridTemplateColumns: '240px 1fr',
+          gridTemplateRows: '1fr 300px',
+          gridTemplateAreas: `
+            "sidebar main"
+            "sidebar terminal"
+          `
+        }}>
+
+          {/* Bento Cell: Sidebar */}
+          <div className="glass-2 rounded-2xl overflow-hidden flex" style={{ gridArea: 'sidebar' }}>
+            <Sidebar />
           </div>
 
-          {/* Active view */}
-          <div className="flex-1 relative overflow-hidden">
-            <Suspense fallback={<ViewFallback />}>
-              {activeView === 'office' && <ErrorBoundary><CyberScene /></ErrorBoundary>}
-              {activeView === 'tasks' && <ErrorBoundary><TaskBoard /></ErrorBoundary>}
-              {activeView === 'dashboard' && <ErrorBoundary><DashboardView /></ErrorBoundary>}
-              {activeView === 'nodes' && <ErrorBoundary><NodesView /></ErrorBoundary>}
-            </Suspense>
+          {/* Bento Cell: Main Content (Tabs + View) */}
+          <div className="glass-2 rounded-2xl flex flex-col overflow-hidden relative group" style={{ gridArea: 'main' }}>
+
+            {/* Mesh Glow overlay for active bento cell */}
+            <div className="absolute inset-0 bg-mesh-glow opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-0"></div>
+
+            {/* Tab bar */}
+            <div className="relative z-10 flex items-center gap-2 px-4 py-3 bg-vz-surface-2/40 backdrop-blur-md border-b border-vz-border/50">
+              {TAB_CONFIG.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveView(tab.id)}
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-display transition-all duration-300 ${activeView === tab.id
+                      ? 'bg-vz-cyan/10 text-vz-cyan neon-border-cyan'
+                      : 'bg-vz-surface/50 text-vz-muted hover:text-vz-text hover:bg-vz-surface-2'
+                    }`}
+                >
+                  <TabIcon tabId={tab.id} active={activeView === tab.id} />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Active view */}
+            <div className="flex-1 relative z-10 overflow-hidden">
+              <Suspense fallback={<ViewFallback />}>
+                {activeView === 'office' && <ErrorBoundary><CyberScene /></ErrorBoundary>}
+                {activeView === 'tasks' && <ErrorBoundary><TaskBoard /></ErrorBoundary>}
+                {activeView === 'dashboard' && <ErrorBoundary><DashboardView /></ErrorBoundary>}
+                {activeView === 'nodes' && <ErrorBoundary><NodesView /></ErrorBoundary>}
+              </Suspense>
+            </div>
           </div>
+
+          {/* Bento Cell: Terminal */}
+          <div className="glass-2 rounded-2xl overflow-hidden shadow-glass-inner" style={{ gridArea: 'terminal' }}>
+            <TerminalPanel />
+          </div>
+
         </div>
       </div>
-
-      {/* Bottom: Terminal + Chat panel */}
-      <TerminalPanel />
 
       {/* Modals */}
       <CreateAgentModal />
