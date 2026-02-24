@@ -1,0 +1,30 @@
+appId: com.vibezone.v2
+productName: VibeZone
+copyright: Copyright © 2026
+
+directories:
+  output: dist-electron
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - assets/**/*
+  - "!node_modules/**/*.{ts,map,md}"
+
+extraMetadata:
+  main: dist/main/main/index.js
+
+asar: true
+asarUnpack:
+  - "node_modules/node-pty/**/*"
+  - "node_modules/ssh2/**/*"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

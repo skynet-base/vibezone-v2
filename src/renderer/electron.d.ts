@@ -1,0 +1,74 @@
+import type { Session, SessionConfig, SSHHost, AutocompleteResult, ProjectEntry, AppSettings, GitStatus, Task, Activity, SprintState, NodeStatus, NodeCommandResult } from '@shared/types';
+
+interface ElectronAPI {
+  session: {
+    create: (config: SessionConfig) => Promise<Session>;
+    kill: (sessionId: string) => Promise<void>;
+    sendInput: (sessionId: string, data: string) => Promise<void>;
+    resize: (sessionId: string, cols: number, rows: number) => Promise<void>;
+    getAll: () => Promise<Session[]>;
+    getOutput: (sessionId: string) => Promise<string>;
+    restart: (sessionId: string) => Promise<Session>;
+  };
+  ssh: {
+    getHosts: () => Promise<SSHHost[]>;
+    addHost: (host: Omit<SSHHost, 'id' | 'isManual'>) => Promise<SSHHost>;
+    removeHost: (hostId: string) => Promise<void>;
+    test: (hostId: string) => Promise<{ success: boolean; error?: string }>;
+  };
+  projects: {
+    autocomplete: (query: string) => Promise<AutocompleteResult[]>;
+    getAll: () => Promise<ProjectEntry[]>;
+  };
+  hook: {
+    setup: () => Promise<{ success: boolean; error?: string }>;
+    uninstall: () => Promise<void>;
+    status: () => Promise<{ enabled: boolean; port?: number }>;
+  };
+  settings: {
+    get: () => Promise<AppSettings>;
+    set: (settings: Partial<AppSettings>) => Promise<void>;
+  };
+  git: {
+    status: (sessionId: string) => Promise<GitStatus | null>;
+  };
+  task: {
+    getAll: () => Promise<Task[]>;
+    create: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>;
+    update: (taskId: string, update: Partial<Task>) => Promise<Task>;
+    delete: (taskId: string) => Promise<void>;
+  };
+  activity: {
+    getAll: () => Promise<Activity[]>;
+    push: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<Activity>;
+  };
+  sprint: {
+    get: () => Promise<SprintState | null>;
+  };
+  team: {
+    import: () => Promise<{ sessions: Session[]; sprintState: SprintState | null; projectName: string } | null>;
+    getSprint: (dirPath: string) => Promise<SprintState | null>;
+    getSkills: (dirPath: string) => Promise<Record<string, string>>;
+  };
+  node: {
+    getAll: () => Promise<NodeStatus[]>;
+    refresh: (nodeId: string) => Promise<NodeStatus>;
+    exec: (nodeId: string, command: string) => Promise<NodeCommandResult>;
+  };
+  window: {
+    minimize: () => void;
+    maximize: () => void;
+    close: () => void;
+    isMaximized: () => Promise<boolean>;
+  };
+  on: (channel: string, callback: (...args: unknown[]) => void) => void;
+  off: (channel: string, callback: (...args: unknown[]) => void) => void;
+}
+
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
+
+export {};
