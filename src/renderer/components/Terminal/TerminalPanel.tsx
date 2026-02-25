@@ -23,7 +23,7 @@ export const TerminalPanel: React.FC = () => {
   const chatOpen = useSessionStore((s) => s.chatOpen);
   const toggleChat = useSessionStore((s) => s.toggleChat);
   const addChatMessage = useSessionStore((s) => s.addChatMessage);
-  const { sendInput, resizeSession, getSessionOutput, quickCreateShell } = useIPC();
+  const { sendInput, resizeSession, getSessionOutput, quickCreateShell, killSession } = useIPC();
   const { handleSlashCommand } = useSlashCommands();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -234,7 +234,7 @@ export const TerminalPanel: React.FC = () => {
                 <button
                   key={session.id}
                   onClick={() => setActiveSession(session.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ${isActiveTab
+                  className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ${isActiveTab
                     ? 'text-vz-text'
                     : 'text-vz-muted hover:text-vz-text hover:bg-vz-surface-2'
                     }`}
@@ -257,6 +257,15 @@ export const TerminalPanel: React.FC = () => {
                   >
                     {session.name}
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); killSession(session.id); }}
+                    className={`ml-1 opacity-0 group-hover:opacity-100 hover:text-vz-red transition-opacity ${isActiveTab ? 'opacity-100' : ''}`}
+                    title="Terminal Kapat"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M3 3L9 9M9 3L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </button>
                 </button>
               );
             })}

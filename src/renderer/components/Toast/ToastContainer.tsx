@@ -6,6 +6,7 @@ const TYPE_STYLES = {
   success: { borderColor: '#00ff88', icon: '✓', iconBg: 'rgba(0,255,136,0.15)' },
   error: { borderColor: '#ff4466', icon: '!', iconBg: 'rgba(255,68,102,0.15)' },
   info: { borderColor: '#00ccff', icon: 'i', iconBg: 'rgba(0,204,255,0.15)' },
+  warning: { borderColor: '#ffb800', icon: '⚠', iconBg: 'rgba(255,184,0,0.15)' },
 } as const;
 
 export const ToastContainer: React.FC = () => {
