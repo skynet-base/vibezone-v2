@@ -224,8 +224,11 @@ export function useIPC() {
 
   const restartSession = useCallback(async (sessionId: string): Promise<Session> => {
     const session = await api().session.restart(sessionId);
-    store.updateSession(sessionId, session);
-    return session;
+    if (session) {
+      store.updateSession(sessionId, session);
+      return session;
+    }
+    throw new Error(`Failed to restart session ${sessionId}`);
   }, []);
 
   const getSessionOutput = useCallback(async (sessionId: string): Promise<string> => {
