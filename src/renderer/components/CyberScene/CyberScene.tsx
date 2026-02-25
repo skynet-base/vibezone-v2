@@ -4,12 +4,10 @@ import { Text, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { Platform } from './Platform';
-import { AgentOrbs } from './AgentOrbs';
-import { AgentConnections } from './AgentConnections';
-import { CommandRing } from './CommandRing';
-import { DataColumns } from './DataColumns';
 import { AmbientParticles } from './AmbientParticles';
 import { PostEffects } from './PostEffects';
+import { RobotAgents } from './RobotAgents';
+import { EnergyConnections } from './EnergyConnections';
 import { useAgentPositions } from './hooks/useAgentPositions';
 
 const SceneFallback: React.FC = () => (
@@ -18,6 +16,53 @@ const SceneFallback: React.FC = () => (
     <meshBasicMaterial color="#00F0FF" wireframe />
   </mesh>
 );
+
+// Demo robot when no sessions — walks in a circle with "Waiting for agents..." text
+const DemoRobot: React.FC = () => {
+  const groupRef = useRef<THREE.Group>(null);
+  const angleRef = useRef(0);
+  const RADIUS = 1.8;
+
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    angleRef.current += delta * 0.35;
+    const a = angleRef.current;
+    groupRef.current.position.set(Math.cos(a) * RADIUS, 0, Math.sin(a) * RADIUS);
+    groupRef.current.rotation.y = a + Math.PI / 2;
+  });
+
+  const demoColor = '#00F0FF';
+
+  return (
+    <group ref={groupRef}>
+      {/* Simple geometric robot proxy */}
+      <mesh position={[0, 1.1, 0]}>
+        <boxGeometry args={[0.35, 0.45, 0.2]} />
+        <meshStandardMaterial color={demoColor} emissive={demoColor} emissiveIntensity={0.3} metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Head */}
+      <mesh position={[0, 1.65, 0]}>
+        <boxGeometry args={[0.25, 0.25, 0.2]} />
+        <meshStandardMaterial color={demoColor} emissive={demoColor} emissiveIntensity={0.4} metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Legs */}
+      <mesh position={[-0.1, 0.6, 0]}>
+        <boxGeometry args={[0.12, 0.55, 0.15]} />
+        <meshStandardMaterial color={demoColor} emissive={demoColor} emissiveIntensity={0.2} metalness={0.8} roughness={0.2} />
+      </mesh>
+      <mesh position={[0.1, 0.6, 0]}>
+        <boxGeometry args={[0.12, 0.55, 0.15]} />
+        <meshStandardMaterial color={demoColor} emissive={demoColor} emissiveIntensity={0.2} metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Status ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <ringGeometry args={[0.4, 0.55, 32]} />
+        <meshBasicMaterial color={demoColor} transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
+      </mesh>
+      <pointLight color={demoColor} intensity={0.8} distance={3} decay={2} />
+    </group>
+  );
+};
 
 const DemoOrb: React.FC = () => {
   const orbRef = useRef<THREE.Mesh>(null);
@@ -69,7 +114,8 @@ const SceneContent: React.FC = () => {
   const quality = settings?.quality ?? 'medium';
   const particlesEnabled = settings?.particlesEnabled ?? true;
 
-  const positions = useAgentPositions(sessions, tasks);
+  // Base positions (circle) for EnergyConnections orb routing
+  const basePositions = useAgentPositions(sessions, tasks);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -84,32 +130,46 @@ const SceneContent: React.FC = () => {
   return (
     <>
       {/* Lighting */}
-      <ambientLight intensity={0.3} />
-      <pointLight position={[5, 5, 5]} color="#00F0FF" intensity={0.4} distance={20} />
-      <pointLight position={[-5, 3, -5]} color="#B200FF" intensity={0.3} distance={20} />
-      <pointLight position={[0, 6, 0]} color="#ffffff" intensity={0.2} distance={15} />
-      {/* Fog */}
-      <fog attach="fog" args={['#050508', 12, 28]} />
+      <ambientLight intensity={0.08} color="#050515" />
+      <pointLight position={[0, 8, 0]} color="#ffffff" intensity={0.15} distance={20} />
+      <pointLight position={[6, 4, 6]} color="#00F0FF" intensity={0.3} distance={18} />
+      <pointLight position={[-6, 3, -6]} color="#B200FF" intensity={0.25} distance={18} />
+
+      {/* Cyberpunk neon fog */}
+      <fog attach="fog" args={['#030308', 8, 25]} />
 
       {/* Scene objects */}
       <Suspense fallback={<SceneFallback />}>
         <Platform />
+
         {sessions.length > 0 ? (
           <>
-            <AgentConnections sessions={sessions} tasks={tasks} positions={positions} />
-            <AgentOrbs
+            {/* 3D Robot agents walking in circle */}
+            <RobotAgents
               sessions={sessions}
+              tasks={tasks}
               activeSessionId={activeSessionId}
               onSelectSession={handleSelectSession}
-              positions={positions}
+            />
+
+            {/* Energy orb connections between working robots */}
+            <EnergyConnections
+              sessions={sessions}
+              tasks={tasks}
+              positions={basePositions}
             />
           </>
         ) : (
           <group>
+            {/* Demo robot walking alone */}
+            <DemoRobot />
+
+            {/* Central orb */}
             <DemoOrb />
+
             <Text
-              position={[0, 1.8, 0]}
-              fontSize={0.8}
+              position={[0, 2.8, 0]}
+              fontSize={0.75}
               color="#00F0FF"
               anchorX="center"
               anchorY="middle"
@@ -117,9 +177,9 @@ const SceneContent: React.FC = () => {
               VIBEZONE
             </Text>
             <Text
-              position={[0, 0.8, 0]}
-              fontSize={0.2}
-              color="#666680"
+              position={[0, 2.0, 0]}
+              fontSize={0.18}
+              color="#445566"
               anchorX="center"
               anchorY="middle"
             >
@@ -127,20 +187,19 @@ const SceneContent: React.FC = () => {
             </Text>
           </group>
         )}
-        <CommandRing />
-        <DataColumns />
+
         <AmbientParticles quality={quality} enabled={particlesEnabled} />
       </Suspense>
 
-      {/* Camera */}
+      {/* Camera controls */}
       <OrbitControls
         enablePan={false}
         enableZoom={true}
         enableRotate={true}
-        minDistance={5}
-        maxDistance={20}
+        minDistance={4}
+        maxDistance={22}
         maxPolarAngle={Math.PI / 2.2}
-        target={[0, 0.3, 0]}
+        target={[0, 0.5, 0]}
         enableDamping
         dampingFactor={0.08}
       />
@@ -155,9 +214,9 @@ export const CyberScene: React.FC = () => {
   const [sceneReady, setSceneReady] = useState(false);
 
   return (
-    <div className="w-full h-full" style={{ background: '#050508' }}>
+    <div className="w-full h-full" style={{ background: '#020208' }}>
       <Canvas
-        camera={{ position: [0, 5, 7], fov: 45, near: 0.1, far: 50 }}
+        camera={{ position: [0, 5, 8], fov: 45, near: 0.1, far: 50 }}
         dpr={[1, 1.5]}
         gl={{
           antialias: true,
@@ -168,11 +227,11 @@ export const CyberScene: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
         onCreated={() => setSceneReady(true)}
       >
-        <color attach="background" args={['#050508']} />
+        <color attach="background" args={['#020208']} />
         <SceneContent />
       </Canvas>
       {!sceneReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#050508]">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#020208]">
           <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
