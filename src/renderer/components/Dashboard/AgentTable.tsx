@@ -81,9 +81,27 @@ export const AgentTable: React.FC = () => {
           </div>
           Agent Tablosu
         </h3>
-        <p className="text-xs text-vz-muted/60 text-center py-8">
-          Henuz aktif agent yok. Yeni agent olusturmak icin sidebar'daki "New Agent" butonunu kullanin.
-        </p>
+        <div className="text-center py-8">
+          <div className="mb-4 flex items-center justify-center">
+            <div className="relative w-14 h-14">
+              <div
+                className="absolute inset-0 rounded-lg opacity-20"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(rgba(139,92,246,0.3) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(139,92,246,0.3) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '8px 8px',
+                }}
+              />
+              <div className="absolute inset-3 border border-vz-purple/30 rounded" style={{ transform: 'rotate(45deg)' }} />
+            </div>
+          </div>
+          <p className="text-xs text-vz-muted mb-1">Henuz aktif agent yok</p>
+          <p className="text-[10px] text-vz-muted/40 leading-relaxed">
+            Sidebar'dan "Agent Ekle" ile yeni bir agent olusturun
+          </p>
+        </div>
       </div>
     );
   }

@@ -23,3 +23,11 @@ export const modalVariants: Variants = {
   },
   exit: { opacity: 0, scale: 0.95, y: 8, transition: { duration: 0.15 } },
 };
+
+export const shimmerPulse: Variants = {
+  hidden: { opacity: 0.3 },
+  visible: {
+    opacity: [0.3, 0.6, 0.3],
+    transition: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' },
+  },
+};
