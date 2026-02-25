@@ -1,10 +1,12 @@
-import React, { useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useCallback, lazy, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { staggerContainer, fadeUp } from '../../lib/animations';
 import { NODE_CONFIG } from '@shared/types';
 import type { NodeId, NodeStatus, NodeCommandResult } from '@shared/types';
 import { NodeInfoPanel } from './NodeInfoPanel';
+import { useWidgetLayout } from '../../hooks/useWidgetLayout';
+import { WidgetCard } from '../UI/WidgetCard';
 
 // Lazy load 3D scene to avoid blocking initial render
 const Node3DScene = lazy(() => import('./Node3DScene').then(m => ({ default: m.Node3DScene })));
@@ -328,12 +330,172 @@ const NodeCard: React.FC<{
   );
 };
 
-// Main View
+// ─── Icon helpers ─────────────────────────────────────────────────────────────
+
+const NodesGridIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <rect x="2" y="2" width="8" height="8" rx="1" />
+    <rect x="14" y="2" width="8" height="8" rx="1" />
+    <rect x="8" y="14" width="8" height="8" rx="1" />
+    <path d="M6 10v4M18 10v4M12 10v4" strokeDasharray="2 2" />
+  </svg>
+);
+
+const QuickActionsIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+// ─── Quick Actions Content ─────────────────────────────────────────────────────
+
+const QuickActionsContent: React.FC<{
+  handleExec: (id: NodeId, cmd: string) => Promise<NodeCommandResult>;
+  handleSwarmTest: () => void;
+  swarmRunning: boolean;
+  swarmResults: Array<{ nodeId: NodeId; label: string; status: 'idle' | 'running' | 'ok' | 'fail'; output: string }>;
+  swarmOpen: boolean;
+  setSwarmOpen: (v: boolean) => void;
+}> = ({ handleExec, handleSwarmTest, swarmRunning, swarmResults, swarmOpen, setSwarmOpen }) => (
+  <div className="p-4 overflow-y-auto h-full">
+    {/* Swarm Test button */}
+    <motion.button
+      onClick={handleSwarmTest}
+      whileHover={{ scale: 1.02, y: -1 }}
+      whileTap={{ scale: 0.97 }}
+      disabled={swarmRunning}
+      className="w-full mb-3 p-3 rounded-xl text-left flex items-center gap-3 transition-all"
+      style={{
+        background: swarmRunning
+          ? 'rgba(0,240,255,0.04)'
+          : 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(178,0,255,0.06) 100%)',
+        border: `1px solid ${swarmRunning ? 'rgba(0,240,255,0.15)' : 'rgba(0,240,255,0.25)'}`,
+      }}
+    >
+      <div
+        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.2)' }}
+      >
+        {swarmRunning ? (
+          <motion.div
+            className="w-4 h-4 border-2 border-vz-cyan border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+          />
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F0FF" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="3" cy="12" r="2" /><circle cx="21" cy="12" r="2" /><circle cx="12" cy="3" r="2" /><circle cx="12" cy="21" r="2" />
+            <line x1="5" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="19" y2="12" />
+            <line x1="12" y1="5" x2="12" y2="9" /><line x1="12" y1="15" x2="12" y2="19" />
+          </svg>
+        )}
+      </div>
+      <div>
+        <div className="text-xs font-semibold" style={{ color: '#00F0FF' }}>
+          {swarmRunning ? 'Swarm çalışıyor...' : '3-PC Swarm Test'}
+        </div>
+        <div className="text-[10px] text-vz-muted mt-0.5">PC1 + PC2 + VPS paralel test dosyası yazar</div>
+      </div>
+      {swarmResults.length > 0 && !swarmRunning && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setSwarmOpen(true); }}
+          className="ml-auto text-[10px] px-2 py-1 rounded-md"
+          style={{ color: '#00F0FF', background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.15)' }}
+        >
+          Sonuçlar →
+        </button>
+      )}
+    </motion.button>
+
+    {/* Swarm Results panel */}
+    <AnimatePresence>
+      {swarmOpen && swarmResults.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-3 overflow-hidden"
+        >
+          <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(5,5,12,0.8)', border: '1px solid rgba(0,240,255,0.1)' }}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-mono text-vz-muted uppercase tracking-widest">Swarm Sonuçları</span>
+              <button onClick={() => setSwarmOpen(false)} className="text-vz-muted hover:text-vz-text text-xs">✕</button>
+            </div>
+            {swarmResults.map((r, i) => (
+              <motion.div
+                key={r.nodeId}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="flex items-start gap-2 p-2 rounded-lg"
+                style={{ background: 'rgba(255,255,255,0.02)' }}
+              >
+                <div className="mt-0.5 flex-shrink-0">
+                  {r.status === 'running' && (
+                    <motion.div className="w-3 h-3 border border-vz-cyan border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }} />
+                  )}
+                  {r.status === 'ok' && <span className="text-[#00ff88] text-xs">✓</span>}
+                  {r.status === 'fail' && <span className="text-[#ff4444] text-xs">✗</span>}
+                  {r.status === 'idle' && <span className="text-vz-muted text-xs">○</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-semibold" style={{ color: r.status === 'ok' ? '#00ff88' : r.status === 'fail' ? '#ff4444' : '#00F0FF' }}>
+                    {r.label}
+                  </div>
+                  {r.output && (
+                    <div className="text-[9px] font-mono text-vz-muted mt-0.5 truncate">
+                      {r.output.split('\n')[0]}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      {[
+        { label: 'VPS RAM', cmd: 'free -h', target: 'vps' as NodeId, color: '#00ff88' },
+        { label: 'Chrome Temizle', cmd: 'bash /root/cleanup-chrome.sh', target: 'vps' as NodeId, color: '#f59e0b' },
+        { label: 'Gateway Restart', cmd: 'pkill -f openclaw-gateway; sleep 2; cd /root && nohup openclaw-gateway > /dev/null 2>&1 &', target: 'vps' as NodeId, color: '#ff4444' },
+        { label: 'PC2 Durum', cmd: 'systeminfo | findstr /B /C:"OS Name" /C:"Total Physical"', target: 'pc2' as NodeId, color: '#00ccff' },
+        { label: 'PC4 Durum', cmd: 'systeminfo | findstr /B /C:"OS Name" /C:"Total Physical"', target: 'pc4' as NodeId, color: '#ec4899' },
+      ].map((action) => (
+        <button
+          key={action.label}
+          onClick={() => handleExec(action.target, action.cmd)}
+          className="p-2.5 rounded-lg text-left hover:bg-vz-surface/60 transition-colors group"
+          style={{ border: '1px solid rgba(255,255,255,0.04)' }}
+        >
+          <span
+            className="text-[10px] font-display font-semibold block mb-0.5"
+            style={{ color: action.color }}
+          >
+            {action.label}
+          </span>
+          <span className="text-[9px] text-vz-muted/60 block truncate">
+            {NODE_CONFIG.find((n) => n.id === action.target)?.name}
+          </span>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+// ─── Main View ────────────────────────────────────────────────────────────────
+
 export const NodesView: React.FC = () => {
   const nodeStatuses = useSessionStore((s) => s.nodeStatuses);
   const [refreshing, setRefreshing] = useState<Set<NodeId>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>('3d');
   const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { layout, updateWidget, resetLayout } = useWidgetLayout('nodes');
 
   // Swarm Test state
   type SwarmResult = { nodeId: NodeId; label: string; status: 'idle' | 'running' | 'ok' | 'fail'; output: string };
@@ -414,10 +576,11 @@ export const NodesView: React.FC = () => {
   const usedRAM = nodeStatuses.reduce((sum, s) => sum + (s.ram?.usedMB || 0), 0);
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-5">
-      {/* Header */}
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header bar */}
       <motion.div
-        className="flex items-center justify-between"
+        className="flex items-center justify-between px-5 py-3 flex-shrink-0"
+        style={{ borderBottom: '1px solid rgba(0,204,255,0.08)' }}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -429,12 +592,7 @@ export const NodesView: React.FC = () => {
               border: '1px solid rgba(0,204,255,0.3)',
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ccff" strokeWidth="1.5" strokeLinecap="round">
-              <rect x="2" y="2" width="8" height="8" rx="1" />
-              <rect x="14" y="2" width="8" height="8" rx="1" />
-              <rect x="8" y="14" width="8" height="8" rx="1" />
-              <path d="M6 10v4M18 10v4M12 10v4" strokeDasharray="2 2" />
-            </svg>
+            <NodesGridIcon />
           </div>
           <div>
             <h2 className="text-base font-display font-bold text-vz-text">Altyapi</h2>
@@ -469,209 +627,118 @@ export const NodesView: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-display font-semibold text-vz-cyan hover:bg-vz-surface/60 transition-colors"
             style={{ border: '1px solid rgba(0,204,255,0.2)' }}
           >
-          <svg
-            width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            className={refreshing.size === NODE_CONFIG.length ? 'animate-spin' : ''}
+            <svg
+              width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className={refreshing.size === NODE_CONFIG.length ? 'animate-spin' : ''}
+            >
+              <path d="M21 2v6h-6" />
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+              <path d="M3 22v-6h6" />
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+            </svg>
+            Tumu Yenile
+          </button>
+          <button
+            onClick={resetLayout}
+            className="text-[10px] text-vz-muted hover:text-vz-cyan transition-colors px-2 py-1.5 rounded hover:bg-vz-surface/40"
           >
-            <path d="M21 2v6h-6" />
-            <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-            <path d="M3 22v-6h6" />
-            <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-          </svg>
-          Tumu Yenile
-        </button>
+            Duzeni Sifirla
+          </button>
         </div>
       </motion.div>
 
-      {/* 3D Scene */}
-      {viewMode === '3d' && (
-        <motion.div
-          key="3d"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="h-[300px] sm:h-[350px] lg:h-[420px] glass-2 rounded-2xl overflow-hidden"
-          style={{ border: '1px solid rgba(0,204,255,0.1)' }}
-        >
-          <Suspense fallback={
-            <div className="w-full h-full flex flex-col items-center justify-center bg-vz-bg/60">
-              <div className="w-8 h-8 border-2 border-vz-cyan/30 border-t-vz-cyan rounded-full animate-spin mb-3" />
-              <span className="text-vz-muted text-xs font-display">3D sahne hazirlaniyor...</span>
+      {/* 3D Scene (not a widget — spans full width conditionally) */}
+      <AnimatePresence>
+        {viewMode === '3d' && (
+          <motion.div
+            key="3d"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex-shrink-0 overflow-hidden"
+            style={{ border: '1px solid rgba(0,204,255,0.1)', margin: '0 20px' }}
+          >
+            <div className="h-[300px] sm:h-[350px] lg:h-[400px] glass-2 rounded-2xl overflow-hidden">
+              <Suspense fallback={
+                <div className="w-full h-full flex flex-col items-center justify-center bg-vz-bg/60">
+                  <div className="w-8 h-8 border-2 border-vz-cyan/30 border-t-vz-cyan rounded-full animate-spin mb-3" />
+                  <span className="text-vz-muted text-xs font-display">3D sahne hazirlaniyor...</span>
+                </div>
+              }>
+                <Node3DScene onDeviceClick={(id) => setSelectedNode(id)} />
+              </Suspense>
             </div>
-          }>
-            <Node3DScene onDeviceClick={(id) => setSelectedNode(id)} />
-          </Suspense>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Node Cards Grid */}
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {NODE_CONFIG.map((config) => config.id).map((id) => (
-          <NodeCard
-            key={id}
-            nodeId={id}
-            status={getStatus(id)}
-            onRefresh={handleRefresh}
-            onExec={handleExec}
-            onSelect={(nid) => setSelectedNode(nid)}
-            refreshing={refreshing.has(id)}
-          />
-        ))}
-      </motion.div>
+      {/* Widget canvas for draggable panels */}
+      <div ref={containerRef} className="flex-1 relative overflow-auto">
+        {/* Node Cards Widget */}
+        {layout['nodeCards'] && (
+          <WidgetCard
+            id="nodeCards"
+            title="Altyapi Dugümleri"
+            icon={<NodesGridIcon />}
+            widgetState={layout['nodeCards']}
+            onUpdate={(patch) => updateWidget('nodeCards', patch)}
+            containerRef={containerRef}
+            minWidth={400}
+            minHeight={200}
+          >
+            <div className="p-4 overflow-y-auto h-full">
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                variants={staggerContainer}
+                initial="hidden"
+                animate="visible"
+              >
+                {NODE_CONFIG.map((config) => config.id).map((id) => (
+                  <NodeCard
+                    key={id}
+                    nodeId={id}
+                    status={getStatus(id)}
+                    onRefresh={handleRefresh}
+                    onExec={handleExec}
+                    onSelect={(nid) => setSelectedNode(nid)}
+                    refreshing={refreshing.has(id)}
+                  />
+                ))}
+              </motion.div>
+            </div>
+          </WidgetCard>
+        )}
 
-      {/* Node Info Panel */}
+        {/* Quick Actions Widget */}
+        {layout['quickActions'] && (
+          <WidgetCard
+            id="quickActions"
+            title="Hizli Islemler"
+            icon={<QuickActionsIcon />}
+            widgetState={layout['quickActions']}
+            onUpdate={(patch) => updateWidget('quickActions', patch)}
+            containerRef={containerRef}
+            minWidth={300}
+            minHeight={120}
+          >
+            <QuickActionsContent
+              handleExec={handleExec}
+              handleSwarmTest={handleSwarmTest}
+              swarmRunning={swarmRunning}
+              swarmResults={swarmResults}
+              swarmOpen={swarmOpen}
+              setSwarmOpen={setSwarmOpen}
+            />
+          </WidgetCard>
+        )}
+      </div>
+
+      {/* Node Info Panel (overlay, not a widget) */}
       <NodeInfoPanel
         nodeId={selectedNode}
         status={selectedNode ? getStatus(selectedNode) : undefined}
         onClose={() => setSelectedNode(null)}
       />
-
-      {/* Quick Actions */}
-      <motion.div variants={fadeUp} initial="hidden" animate="visible">
-        <div className="glass-2 p-5">
-          <h3 className="text-xs font-display font-semibold text-vz-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded-md flex items-center justify-center"
-              style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)' }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-            </div>
-            Hizli Islemler
-          </h3>
-          {/* Swarm Test button */}
-          <motion.button
-            onClick={handleSwarmTest}
-            whileHover={{ scale: 1.02, y: -1 }}
-            whileTap={{ scale: 0.97 }}
-            disabled={swarmRunning}
-            className="w-full mb-3 p-3 rounded-xl text-left flex items-center gap-3 transition-all"
-            style={{
-              background: swarmRunning
-                ? 'rgba(0,240,255,0.04)'
-                : 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(178,0,255,0.06) 100%)',
-              border: `1px solid ${swarmRunning ? 'rgba(0,240,255,0.15)' : 'rgba(0,240,255,0.25)'}`,
-            }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.2)' }}
-            >
-              {swarmRunning ? (
-                <motion.div
-                  className="w-4 h-4 border-2 border-vz-cyan border-t-transparent rounded-full"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                />
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F0FF" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <circle cx="3" cy="12" r="2" /><circle cx="21" cy="12" r="2" /><circle cx="12" cy="3" r="2" /><circle cx="12" cy="21" r="2" />
-                  <line x1="5" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="19" y2="12" />
-                  <line x1="12" y1="5" x2="12" y2="9" /><line x1="12" y1="15" x2="12" y2="19" />
-                </svg>
-              )}
-            </div>
-            <div>
-              <div className="text-xs font-semibold" style={{ color: '#00F0FF' }}>
-                {swarmRunning ? 'Swarm çalışıyor...' : '3-PC Swarm Test'}
-              </div>
-              <div className="text-[10px] text-vz-muted mt-0.5">PC1 + PC2 + VPS paralel test dosyası yazar</div>
-            </div>
-            {swarmResults.length > 0 && !swarmRunning && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setSwarmOpen(true); }}
-                className="ml-auto text-[10px] px-2 py-1 rounded-md"
-                style={{ color: '#00F0FF', background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.15)' }}
-              >
-                Sonuçlar →
-              </button>
-            )}
-          </motion.button>
-
-          {/* Swarm Results panel */}
-          <AnimatePresence>
-            {swarmOpen && swarmResults.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className="mb-3 overflow-hidden"
-              >
-                <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(5,5,12,0.8)', border: '1px solid rgba(0,240,255,0.1)' }}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-mono text-vz-muted uppercase tracking-widest">Swarm Sonuçları</span>
-                    <button onClick={() => setSwarmOpen(false)} className="text-vz-muted hover:text-vz-text text-xs">✕</button>
-                  </div>
-                  {swarmResults.map((r, i) => (
-                    <motion.div
-                      key={r.nodeId}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="flex items-start gap-2 p-2 rounded-lg"
-                      style={{ background: 'rgba(255,255,255,0.02)' }}
-                    >
-                      <div className="mt-0.5 flex-shrink-0">
-                        {r.status === 'running' && (
-                          <motion.div className="w-3 h-3 border border-vz-cyan border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }} />
-                        )}
-                        {r.status === 'ok' && <span className="text-[#00ff88] text-xs">✓</span>}
-                        {r.status === 'fail' && <span className="text-[#ff4444] text-xs">✗</span>}
-                        {r.status === 'idle' && <span className="text-vz-muted text-xs">○</span>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[10px] font-semibold" style={{ color: r.status === 'ok' ? '#00ff88' : r.status === 'fail' ? '#ff4444' : '#00F0FF' }}>
-                          {r.label}
-                        </div>
-                        {r.output && (
-                          <div className="text-[9px] font-mono text-vz-muted mt-0.5 truncate">
-                            {r.output.split('\n')[0]}
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-            {[
-              { label: 'VPS RAM', cmd: 'free -h', target: 'vps' as NodeId, color: '#00ff88' },
-              { label: 'Chrome Temizle', cmd: 'bash /root/cleanup-chrome.sh', target: 'vps' as NodeId, color: '#f59e0b' },
-              { label: 'Gateway Restart', cmd: 'pkill -f openclaw-gateway; sleep 2; cd /root && nohup openclaw-gateway > /dev/null 2>&1 &', target: 'vps' as NodeId, color: '#ff4444' },
-              { label: 'PC2 Durum', cmd: 'systeminfo | findstr /B /C:"OS Name" /C:"Total Physical"', target: 'pc2' as NodeId, color: '#00ccff' },
-              { label: 'PC4 Durum', cmd: 'systeminfo | findstr /B /C:"OS Name" /C:"Total Physical"', target: 'pc4' as NodeId, color: '#ec4899' },
-            ].map((action) => (
-              <button
-                key={action.label}
-                onClick={() => handleExec(action.target, action.cmd)}
-                className="p-2.5 rounded-lg text-left hover:bg-vz-surface/60 transition-colors group"
-                style={{ border: '1px solid rgba(255,255,255,0.04)' }}
-              >
-                <span
-                  className="text-[10px] font-display font-semibold block mb-0.5"
-                  style={{ color: action.color }}
-                >
-                  {action.label}
-                </span>
-                <span className="text-[9px] text-vz-muted/60 block truncate">
-                  {NODE_CONFIG.find((n) => n.id === action.target)?.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </motion.div>
     </div>
   );
 };
