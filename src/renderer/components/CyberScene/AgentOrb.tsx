@@ -43,8 +43,11 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
   const groupRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const coreRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const tempVec = useRef(new THREE.Vector3());
   const [hovered, setHovered] = useState(false);
   const clickBounce = useRef(0);
+  const clickEmissive = useRef(0);
 
   const agentInfo = AGENT_INFO[session.agentType];
   const color = useMemo(() => new THREE.Color(agentInfo.color), [agentInfo.color]);
@@ -52,22 +55,44 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
 
   const handleClick = useCallback(() => {
     clickBounce.current = 1.0;
+    clickEmissive.current = 1.5;
     onClick(session.id);
   }, [onClick, session.id]);
 
-  const handlePointerOver = useCallback(() => setHovered(true), []);
-  const handlePointerOut = useCallback(() => setHovered(false), []);
+  const handlePointerOver = useCallback((e: any) => { 
+    e.stopPropagation(); 
+    setHovered(true); 
+    document.body.style.cursor = 'pointer';
+  }, []);
+  const handlePointerOut = useCallback(() => { 
+    setHovered(false); 
+    document.body.style.cursor = 'auto';
+  }, []);
 
   useFrame((state, delta) => {
+    const t = state.clock.elapsedTime;
+
     // Ring rotation
     if (ringRef.current && statusCfg.ringSpeed > 0) {
       ringRef.current.rotation.z += delta * statusCfg.ringSpeed;
     }
 
-    // Scale pulse for working status
+    // Scale pulse for working status - enhanced (0.9 to 1.15)
     if (coreRef.current && statusCfg.pulseScale) {
-      const pulse = 1.0 + 0.05 * Math.sin(state.clock.elapsedTime * 3);
+      const pulse = 1.0 + 0.15 * Math.sin(t * 3);
       coreRef.current.scale.setScalar(pulse);
+    }
+
+    // Emissive breathing effect for working status
+    if (materialRef.current && statusCfg.pulseScale) {
+      materialRef.current.emissiveIntensity = statusCfg.emissive + 0.4 * Math.sin(t * 4) + clickEmissive.current;
+    } else if (materialRef.current) {
+      materialRef.current.emissiveIntensity = statusCfg.emissive + clickEmissive.current;
+    }
+
+    // Waiting status vibration
+    if (session.status === 'waiting' && groupRef.current) {
+      groupRef.current.position.x = position[0] + Math.sin(t * 15) * 0.003;
     }
 
     // Click bounce decay
@@ -76,12 +101,18 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
       if (clickBounce.current < 0.01) clickBounce.current = 0;
     }
 
+    // Click emissive spike decay
+    if (clickEmissive.current > 0) {
+      clickEmissive.current *= 0.92;
+      if (clickEmissive.current < 0.01) clickEmissive.current = 0;
+    }
+
     // Hover scale + click bounce
     if (groupRef.current) {
       const bounce = 1.0 + clickBounce.current * 0.15;
       const targetScale = (hovered ? 1.1 : 1.0) * bounce;
       groupRef.current.scale.lerp(
-        new THREE.Vector3(targetScale, targetScale, targetScale),
+        tempVec.current.setScalar(targetScale),
         0.15
       );
     }
@@ -101,11 +132,12 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
       <mesh ref={coreRef}>
         <icosahedronGeometry args={[0.3, 3]} />
         <meshPhysicalMaterial
+          ref={materialRef}
           color={color}
           metalness={0.3}
           roughness={0.2}
           emissive={color}
-          emissiveIntensity={statusCfg.emissive}
+          emissiveIntensity={statusCfg.emissive + clickEmissive.current}
           transparent
           opacity={opacity}
           toneMapped={false}
@@ -256,7 +288,7 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
   // Wrap idle agents in Float for gentle bobbing
   if (session.status === 'idle') {
     return (
-      <Float speed={1.5} rotationIntensity={0} floatIntensity={0.3} floatingRange={[-0.05, 0.05]}>
+      <Float speed={1.5} rotationIntensity={0} floatIntensity={0.5} floatingRange={[-0.05, 0.05]}>
         {orbContent}
       </Float>
     );
