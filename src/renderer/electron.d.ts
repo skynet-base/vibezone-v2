@@ -55,6 +55,9 @@ interface ElectronAPI {
     refresh: (nodeId: string) => Promise<NodeStatus>;
     exec: (nodeId: string, command: string) => Promise<NodeCommandResult>;
   };
+  system: {
+    getHomeDir: () => Promise<string>;
+  };
   window: {
     minimize: () => void;
     maximize: () => void;

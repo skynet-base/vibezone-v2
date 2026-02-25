@@ -27,15 +27,23 @@ const EnergyLine: React.FC<{
     return a.lerp(b, 0.5);
   }, [colorA, colorB]);
 
-  const lineGeometry = useMemo(() => {
+  const lineObj = useMemo(() => {
     const geo = new THREE.BufferGeometry();
     const positions = new Float32Array([
       from[0], from[1], from[2],
       to[0], to[1], to[2],
     ]);
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geo;
-  }, [from, to]);
+    const mat = new THREE.LineBasicMaterial({
+      color: mixedColor,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    return new THREE.Line(geo, mat);
+  }, [from, to, mixedColor]);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
@@ -61,16 +69,7 @@ const EnergyLine: React.FC<{
   return (
     <group>
       {/* Connection line */}
-      <line ref={lineRef as any} geometry={lineGeometry}>
-        <lineBasicMaterial
-          color={mixedColor}
-          transparent
-          opacity={0.35}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </line>
+      <primitive ref={lineRef} object={lineObj} />
 
       {/* Energy dot */}
       <mesh ref={dotRef}>
