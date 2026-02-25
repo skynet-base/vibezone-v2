@@ -98,6 +98,15 @@ const api = {
     maximize: () => ipcRenderer.invoke(IPC.WINDOW_MAXIMIZE),
     close: () => ipcRenderer.invoke(IPC.WINDOW_CLOSE),
     isMaximized: () => ipcRenderer.invoke(IPC.WINDOW_IS_MAXIMIZED),
+    toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
+    isFullscreen: () => ipcRenderer.invoke('window:isFullscreen'),
+  },
+
+  // ---- Dialog ----
+  dialog: {
+    openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+    openFile: (filters?: { name: string; extensions: string[] }[]) => ipcRenderer.invoke('dialog:openFile', filters),
+    saveFile: (defaultPath?: string) => ipcRenderer.invoke('dialog:saveFile', defaultPath),
   },
 
   // ---- Tasks ----
