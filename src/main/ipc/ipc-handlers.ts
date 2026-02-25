@@ -29,9 +29,9 @@ function validateSessionConfig(config: unknown): SessionConfig {
   return {
     name: validateString(c.name, 'name', 100),
     agentType: validateString(c.agentType, 'agentType', 50) as SessionConfig['agentType'],
-    location: validateString(c.location, 'location', 10) as SessionConfig['location'],
+    location: validateOptionalString(c.location, 'location', 10) as SessionConfig['location'] || 'local',
     sshHost: validateOptionalString(c.sshHost, 'sshHost'),
-    cwd: validateString(c.cwd, 'cwd', 500),
+    cwd: validateOptionalString(c.cwd, 'cwd', 500) || process.env.HOME || process.env.USERPROFILE || '.',
     customCommand: validateOptionalString(c.customCommand, 'customCommand', 500),
     flags: validateOptionalString(c.flags, 'flags', 500),
     category: validateOptionalString(c.category, 'category', 20) as SessionConfig['category'],
@@ -113,15 +113,18 @@ export function registerIPCHandlers(
   });
 
   ipcMain.handle(IPC.SESSION_SEND_INPUT, async (_event, id: unknown, text: unknown) => {
-    const sessionId = validateString(id, 'sessionId', 100);
-    if (typeof text !== 'string') throw new Error('Input text must be a string');
-    // Limit input size to prevent memory abuse (1MB max per write)
-    if (text.length > 1024 * 1024) throw new Error('Input text too large');
-    const remote = sshManager.getSession(sessionId);
-    if (remote) {
-      return sshManager.sendInput(sessionId, text);
+    try {
+      const sessionId = validateString(id, 'sessionId', 100);
+      if (typeof text !== 'string') throw new Error('Input text must be a string');
+      if (text.length > 1024 * 1024) throw new Error('Input text too large');
+      const remote = sshManager.getSession(sessionId);
+      if (remote) {
+        return sshManager.sendInput(sessionId, text);
+      }
+      return sessionManager.sendInput(sessionId, text);
+    } catch {
+      return false;
     }
-    return sessionManager.sendInput(sessionId, text);
   });
 
   ipcMain.handle(IPC.SESSION_RESIZE, async (_event, id: unknown, cols: unknown, rows: unknown) => {
@@ -136,10 +139,14 @@ export function registerIPCHandlers(
   });
 
   ipcMain.handle(IPC.SESSION_GET_OUTPUT, async (_event, id: unknown) => {
-    const sessionId = validateString(id, 'sessionId', 100);
-    const remoteOutput = sshManager.getOutputBuffer(sessionId);
-    if (remoteOutput) return remoteOutput;
-    return sessionManager.getOutputBuffer(sessionId);
+    try {
+      const sessionId = validateString(id, 'sessionId', 100);
+      const remoteOutput = sshManager.getOutputBuffer(sessionId);
+      if (remoteOutput) return remoteOutput;
+      return sessionManager.getOutputBuffer(sessionId);
+    } catch {
+      return '';
+    }
   });
 
   ipcMain.handle(IPC.SESSION_RESTART, async (_event, id: unknown) => {
@@ -347,7 +354,9 @@ export function registerIPCHandlers(
   // ---- Push event wiring ----
 
   sessionManager.setOutputHandler((sessionId, data) => {
-    send(IPC.SESSION_OUTPUT, sessionId, data);
+    if (typeof data === 'string') {
+      send(IPC.SESSION_OUTPUT, sessionId, data);
+    }
   });
 
   sessionManager.setStatusHandler((session) => {
@@ -355,7 +364,9 @@ export function registerIPCHandlers(
   });
 
   sshManager.setOutputHandler((sessionId, data) => {
-    send(IPC.SESSION_OUTPUT, sessionId, data);
+    if (typeof data === 'string') {
+      send(IPC.SESSION_OUTPUT, sessionId, data);
+    }
   });
 
   sshManager.setStatusHandler((session) => {
