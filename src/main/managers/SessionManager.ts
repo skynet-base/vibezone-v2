@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import os from 'os';
+import fs from 'fs';
 import { Session, SessionConfig, SessionStatus, AgentType, getAgentCategory } from '../../shared/types';
 
 // node-pty is a native module - use require
@@ -48,7 +50,13 @@ function getAgentCommandAndArgs(
     cmd = sanitizeShellArg(parts[0]);
     args = parts.slice(1).map(sanitizeShellArg);
   } else {
-    cmd = TERMINAL_COMMANDS[agentType] || 'bash';
+    if (agentType === 'shell') {
+      cmd = process.platform === 'win32'
+        ? (process.env.COMSPEC || 'cmd.exe')
+        : (process.env.SHELL || '/bin/bash');
+    } else {
+      cmd = TERMINAL_COMMANDS[agentType] || 'bash';
+    }
     args = TERMINAL_DEFAULT_ARGS[agentType] ? [...TERMINAL_DEFAULT_ARGS[agentType]!] : [];
   }
 
@@ -78,8 +86,7 @@ export class SessionManager {
     const category = config.category || getAgentCategory(config.agentType);
 
     // Validate CWD - use home directory if invalid
-    const cwd = config.cwd || process.env.HOME || process.env.USERPROFILE || '.';
-    const validatedCwd = cwd;
+    const cwd = config.cwd && fs.existsSync(config.cwd) ? config.cwd : os.homedir();
 
     // Team agents are virtual - no PTY process
     if (category === 'team') {
@@ -94,29 +101,11 @@ export class SessionManager {
         name: 'xterm-256color',
         cols: 120,
         rows: 30,
-        cwd: validatedCwd,
+        cwd: cwd,
         env: process.env,
       });
-    } catch (err: any) {
-      console.error(`PTY spawn failed for ${config.name}:`, err?.message || err);
-      const session: Session = {
-        id,
-        name: config.name,
-        agentType: config.agentType,
-        location: config.location,
-        sshHost: config.sshHost,
-        cwd: config.cwd,
-        status: 'offline',
-        createdAt: Date.now(),
-        lastActivity: Date.now(),
-        customCommand: config.customCommand,
-        flags: config.flags,
-        category: 'terminal',
-      };
-      const managed: ManagedSession = { session, ptyProcess: null, outputBuffer: '' };
-      this.sessions.set(id, managed);
-      this.emitStatusChange(session);
-      return session;
+    } catch (err) {
+      throw new Error(`Terminal başlatılamadı: ${(err as Error).message}`);
     }
 
     const session: Session = {
