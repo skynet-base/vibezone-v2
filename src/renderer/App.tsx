@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TopBar } from './components/Layout/TopBar';
 import { Sidebar } from './components/Layout/Sidebar';
 import { TerminalPanel } from './components/Terminal/TerminalPanel';
@@ -99,6 +99,9 @@ const App: React.FC = () => {
   const sidebarWidth = useSessionStore((s) => s.sidebarWidth);
   const sidebarCollapsed = useSessionStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useSessionStore((s) => s.setSidebarCollapsed);
+  const createModalOpen = useSessionStore((s) => s.createAgentModalOpen);
+  const settingsOpen = useSessionStore((s) => s.settingsModalOpen);
+  const sshModalOpen = useSessionStore((s) => s.sshHostModalOpen);
 
   // Auto-collapse sidebar on small windows
   useEffect(() => {
@@ -206,9 +209,15 @@ const App: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <CreateAgentModal />
-      <SSHHostModal />
-      <SettingsModal />
+      <AnimatePresence>
+        {createModalOpen ? <CreateAgentModal /> : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {settingsOpen ? <SettingsModal /> : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {sshModalOpen ? <SSHHostModal /> : null}
+      </AnimatePresence>
 
       {/* Toast notifications */}
       <ToastContainer />
