@@ -251,6 +251,68 @@ export function registerIPCHandlers(
     return win.isMaximized();
   });
 
+  // ---- Dialog handlers ----
+
+  ipcMain.handle('dialog:openFolder', async () => {
+    try {
+      const result = await dialog.showOpenDialog(win, {
+        properties: ['openDirectory'],
+        title: 'Klasör Seç',
+      });
+      return result.canceled ? null : result.filePaths[0];
+    } catch (err) {
+      console.error('dialog:openFolder error:', err);
+      return null;
+    }
+  });
+
+  ipcMain.handle('dialog:openFile', async (_e, filters?: { name: string; extensions: string[] }[]) => {
+    try {
+      const result = await dialog.showOpenDialog(win, {
+        properties: ['openFile'],
+        title: 'Dosya Seç',
+        filters: filters || [{ name: 'Tüm Dosyalar', extensions: ['*'] }],
+      });
+      return result.canceled ? null : result.filePaths[0];
+    } catch (err) {
+      console.error('dialog:openFile error:', err);
+      return null;
+    }
+  });
+
+  ipcMain.handle('dialog:saveFile', async (_e, defaultPath?: string) => {
+    try {
+      const result = await dialog.showSaveDialog(win, {
+        title: 'Dosya Kaydet',
+        defaultPath,
+      });
+      return result.canceled ? null : result.filePath;
+    } catch (err) {
+      console.error('dialog:saveFile error:', err);
+      return null;
+    }
+  });
+
+  // ---- Window management handlers ----
+
+  ipcMain.handle('window:toggleFullscreen', () => {
+    try {
+      win.setFullScreen(!win.isFullScreen());
+      return win.isFullScreen();
+    } catch (err) {
+      console.error('window:toggleFullscreen error:', err);
+      return false;
+    }
+  });
+
+  ipcMain.handle('window:isFullscreen', () => {
+    try {
+      return win.isFullScreen();
+    } catch (err) {
+      return false;
+    }
+  });
+
   // ---- Task handlers ----
 
   ipcMain.handle(IPC.TASK_GET_ALL, async () => {
