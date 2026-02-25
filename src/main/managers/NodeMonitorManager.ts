@@ -1,10 +1,12 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import type { NodeId, NodeStatus, NodeCommandResult } from '../../shared/types';
+import type { NodeId, NodeStatus, NodeCommandResult, NodeInfo } from '../../shared/types';
+import { NODE_CONFIG } from '../../shared/types';
+import type { ConfigManager } from './ConfigManager';
 
 const execFileAsync = promisify(execFile);
 
-const POLL_INTERVAL = 30_000; // 30 seconds
+const POLL_INTERVAL = 30_000;
 const SSH_TIMEOUT = 10_000;
 
 type StatusHandler = (statuses: NodeStatus[]) => void;
@@ -13,12 +15,13 @@ export class NodeMonitorManager {
   private statuses: Map<NodeId, NodeStatus> = new Map();
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private statusHandler: StatusHandler | null = null;
+  private configManager: ConfigManager;
 
-  constructor() {
-    // Initialize with defaults
-    for (const id of ['pc1', 'pc2', 'vps'] as NodeId[]) {
-      this.statuses.set(id, {
-        nodeId: id,
+  constructor(configManager: ConfigManager) {
+    this.configManager = configManager;
+    for (const node of NODE_CONFIG) {
+      this.statuses.set(node.id, {
+        nodeId: node.id,
         connection: 'offline',
         lastChecked: 0,
       });
@@ -39,10 +42,12 @@ export class NodeMonitorManager {
     return Array.from(this.statuses.values());
   }
 
+  private getLocalNodeId(): NodeId {
+    return this.configManager.getSettings().localNodeId || 'pc1';
+  }
+
   start(): void {
-    // Initial poll
     this.pollAll();
-    // Periodic polling
     this.pollTimer = setInterval(() => this.pollAll(), POLL_INTERVAL);
   }
 
@@ -54,19 +59,31 @@ export class NodeMonitorManager {
   }
 
   async pollAll(): Promise<void> {
-    await Promise.allSettled([
-      this.pollPC1(),
-      this.pollPC2(),
-      this.pollVPS(),
-    ]);
+    const localId = this.getLocalNodeId();
+    await Promise.allSettled(
+      NODE_CONFIG.map((node) => {
+        if (node.id === localId) return this.pollLocal(node);
+        switch (node.monitorType) {
+          case 'ssh-windows': return this.pollSSHWindows(node);
+          case 'ssh-linux': return this.pollSSHLinux(node);
+          default: return this.pollSSHWindows(node);
+        }
+      })
+    );
+    await this.pollGGAgentStatusAll();
     this.emit();
   }
 
   async refreshNode(nodeId: NodeId): Promise<NodeStatus> {
-    switch (nodeId) {
-      case 'pc1': await this.pollPC1(); break;
-      case 'pc2': await this.pollPC2(); break;
-      case 'vps': await this.pollVPS(); break;
+    const node = NODE_CONFIG.find(n => n.id === nodeId);
+    if (!node) throw new Error(`Unknown node: ${nodeId}`);
+    const localId = this.getLocalNodeId();
+    if (nodeId === localId) {
+      await this.pollLocal(node);
+    } else if (node.monitorType === 'ssh-linux') {
+      await this.pollSSHLinux(node);
+    } else {
+      await this.pollSSHWindows(node);
     }
     this.emit();
     return this.statuses.get(nodeId)!;
@@ -76,22 +93,22 @@ export class NodeMonitorManager {
     const timestamp = Date.now();
     try {
       let output: string;
-      let exitCode = 0;
+      const exitCode = 0;
+      const localId = this.getLocalNodeId();
 
-      if (nodeId === 'pc1') {
-        // Local execution
+      if (nodeId === localId) {
         const result = await execFileAsync('bash', ['-c', command], {
           timeout: SSH_TIMEOUT,
           maxBuffer: 1024 * 1024,
         });
         output = result.stdout + (result.stderr ? '\n' + result.stderr : '');
       } else {
-        // Remote via SSH
-        const alias = nodeId === 'pc2' ? 'pc2' : 'vps';
+        const node = NODE_CONFIG.find(n => n.id === nodeId);
+        if (!node?.sshAlias) throw new Error(`No SSH alias for node: ${nodeId}`);
         const result = await execFileAsync('ssh', [
           '-o', 'ConnectTimeout=8',
           '-o', 'BatchMode=yes',
-          alias,
+          node.sshAlias,
           command,
         ], { timeout: SSH_TIMEOUT, maxBuffer: 1024 * 1024 });
         output = result.stdout + (result.stderr ? '\n' + result.stderr : '');
@@ -109,19 +126,19 @@ export class NodeMonitorManager {
     }
   }
 
-  // ---- PC1 (Local) ----
-  private async pollPC1(): Promise<void> {
+  // ---- Local Machine ----
+  private async pollLocal(node: NodeInfo): Promise<void> {
     try {
-      const os = await import('os');
-      const totalMB = Math.round(os.totalmem() / 1024 / 1024);
-      const freeMB = Math.round(os.freemem() / 1024 / 1024);
+      const osModule = await import('os');
+      const totalMB = Math.round(osModule.totalmem() / 1024 / 1024);
+      const freeMB = Math.round(osModule.freemem() / 1024 / 1024);
       const usedMB = totalMB - freeMB;
-      const uptimeSeconds = os.uptime();
+      const uptimeSeconds = osModule.uptime();
       const days = Math.floor(uptimeSeconds / 86400);
       const hours = Math.floor((uptimeSeconds % 86400) / 3600);
 
-      this.statuses.set('pc1', {
-        nodeId: 'pc1',
+      this.statuses.set(node.id, {
+        nodeId: node.id,
         connection: 'online',
         lastChecked: Date.now(),
         ram: { totalMB, usedMB },
@@ -132,23 +149,24 @@ export class NodeMonitorManager {
         ],
       });
     } catch {
-      this.statuses.set('pc1', {
-        nodeId: 'pc1',
+      this.statuses.set(node.id, {
+        nodeId: node.id,
         connection: 'online',
         lastChecked: Date.now(),
       });
     }
   }
 
-  // ---- PC2 (Skynet - Windows SSH) ----
-  private async pollPC2(): Promise<void> {
+  // ---- Remote Windows via SSH ----
+  private async pollSSHWindows(node: NodeInfo): Promise<void> {
+    if (!node.sshAlias) return;
     try {
-      this.updateConnection('pc2', 'connecting');
+      this.updateConnection(node.id, 'connecting');
 
       const result = await execFileAsync('ssh', [
         '-o', 'ConnectTimeout=8',
         '-o', 'BatchMode=yes',
-        'pc2',
+        node.sshAlias,
         'wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value 2>nul & echo ---UPTIME--- & wmic OS get LastBootUpTime /Value 2>nul',
       ], { timeout: SSH_TIMEOUT, maxBuffer: 512 * 1024 });
 
@@ -158,7 +176,6 @@ export class NodeMonitorManager {
       const totalMB = Math.round(totalKB / 1024);
       const usedMB = Math.round((totalKB - freeKB) / 1024);
 
-      // Parse uptime from LastBootUpTime
       const bootMatch = out.match(/LastBootUpTime=(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/);
       let uptime = '';
       if (bootMatch) {
@@ -169,20 +186,19 @@ export class NodeMonitorManager {
         uptime = `${days}g ${hours}sa`;
       }
 
-      this.statuses.set('pc2', {
-        nodeId: 'pc2',
+      this.statuses.set(node.id, {
+        nodeId: node.id,
         connection: 'online',
         lastChecked: Date.now(),
         ram: { totalMB, usedMB },
         uptime,
         services: [
-          { name: 'OpenClaw', status: 'running' },
           { name: 'SSH Server', status: 'running' },
         ],
       });
     } catch (err: any) {
-      this.statuses.set('pc2', {
-        nodeId: 'pc2',
+      this.statuses.set(node.id, {
+        nodeId: node.id,
         connection: 'offline',
         lastChecked: Date.now(),
         error: err.message?.slice(0, 100),
@@ -190,24 +206,24 @@ export class NodeMonitorManager {
     }
   }
 
-  // ---- VPS (Ubuntu SSH) ----
-  private async pollVPS(): Promise<void> {
+  // ---- Remote Linux via SSH ----
+  private async pollSSHLinux(node: NodeInfo): Promise<void> {
+    if (!node.sshAlias) return;
     try {
-      this.updateConnection('vps', 'connecting');
+      this.updateConnection(node.id, 'connecting');
 
       const result = await execFileAsync('ssh', [
         '-o', 'ConnectTimeout=8',
         '-o', 'BatchMode=yes',
-        'vps',
+        node.sshAlias,
         'bash /root/orchestration-status.sh 2>/dev/null || echo \'{"error":"script_missing"}\'',
       ], { timeout: SSH_TIMEOUT, maxBuffer: 512 * 1024 });
 
       const data = JSON.parse(result.stdout.trim());
 
       if (data.error) {
-        // Fallback: basic check
-        this.statuses.set('vps', {
-          nodeId: 'vps',
+        this.statuses.set(node.id, {
+          nodeId: node.id,
           connection: 'online',
           lastChecked: Date.now(),
           error: data.error,
@@ -238,8 +254,8 @@ export class NodeMonitorManager {
         errors: j.errors,
       }));
 
-      this.statuses.set('vps', {
-        nodeId: 'vps',
+      this.statuses.set(node.id, {
+        nodeId: node.id,
         connection: 'online',
         lastChecked: Date.now(),
         ram: data.ram ? { totalMB: data.ram.total_mb, usedMB: data.ram.used_mb } : undefined,
@@ -249,12 +265,50 @@ export class NodeMonitorManager {
         cronJobs,
       });
     } catch (err: any) {
-      this.statuses.set('vps', {
-        nodeId: 'vps',
+      this.statuses.set(node.id, {
+        nodeId: node.id,
         connection: 'offline',
         lastChecked: Date.now(),
         error: err.message?.slice(0, 100),
       });
+    }
+  }
+
+  // ---- GG Agent Status (all nodes) ----
+  private async pollGGAgentStatusAll(): Promise<void> {
+    const ggToolsCmd = 'node $([ -f $HOME/.claude/good-guys/bin/gg-tools.cjs ] && echo $HOME/.claude/good-guys/bin/gg-tools.cjs || echo $HOME/.openclaw/good-guys/bin/gg-tools.cjs)';
+    const localId = this.getLocalNodeId();
+
+    for (const node of NODE_CONFIG) {
+      try {
+        const status = this.statuses.get(node.id);
+        if (!status || (node.id !== localId && status.connection !== 'online')) continue;
+
+        let result;
+        if (node.id === localId) {
+          result = await execFileAsync('bash', ['-c', `${ggToolsCmd} pc-identity`], {
+            timeout: 5000,
+            maxBuffer: 64 * 1024,
+          });
+        } else {
+          if (!node.sshAlias) continue;
+          result = await execFileAsync('ssh', [
+            '-o', 'ConnectTimeout=5',
+            '-o', 'BatchMode=yes',
+            node.sshAlias,
+            `${ggToolsCmd} pc-identity 2>/dev/null || echo '{}'`,
+          ], { timeout: 8000, maxBuffer: 64 * 1024 });
+        }
+        const data = JSON.parse(result.stdout.trim());
+        if (data.pc_id || node.id === localId) {
+          status!.gg_agent_status = {
+            pc_id: data.pc_id || node.id,
+            platform: data.platform || 'claude-code',
+            active_tasks: 0,
+            autonomous_cron: data.autonomous_cron || false,
+          };
+        }
+      } catch { /* GG not installed on this node */ }
     }
   }
 

@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   hookEnabled: false,
   sshHosts: [],
   recentProjects: [],
+  localNodeId: undefined,
 };
 
 interface StoreSchema {

@@ -19,7 +19,10 @@ asarUnpack:
   - "node_modules/node-pty/**/*"
   - "node_modules/ssh2/**/*"
 
+npmRebuild: false
+
 win:
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch: [x64]

@@ -10,6 +10,8 @@ import { TaskManager } from './managers/TaskManager';
 import { TeamImporter } from './managers/TeamImporter';
 import { NodeMonitorManager } from './managers/NodeMonitorManager';
 import { registerIPCHandlers } from './ipc/ipc-handlers';
+import os from 'os';
+import { NODE_CONFIG } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -32,7 +34,14 @@ const hookManager = new HookManager();
 const gitStatusManager = new GitStatusManager();
 const taskManager = new TaskManager();
 const teamImporter = new TeamImporter();
-const nodeMonitor = new NodeMonitorManager();
+// Auto-detect local node from hostname
+const detectedHostname = os.hostname().toUpperCase();
+const detectedNode = NODE_CONFIG.find(n => n.hostname.toUpperCase() === detectedHostname);
+if (detectedNode && !configManager.getSettings().localNodeId) {
+  configManager.setSetting('localNodeId', detectedNode.id);
+}
+
+const nodeMonitor = new NodeMonitorManager(configManager);
 
 const isDev = !app.isPackaged;
 const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
@@ -159,10 +168,9 @@ function createTray(): void {
 }
 
 function restoreSessions(): void {
-  const savedSessions = configManager.getSavedSessions();
-  for (const session of savedSessions) {
-    sessionManager.restoreSession(session);
-  }
+  // Don't auto-restore sessions on startup — start clean
+  // Users can manually create sessions as needed
+  configManager.saveSessions([]);
 }
 
 // Single instance lock

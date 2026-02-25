@@ -1,9 +1,15 @@
-import React, { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { staggerContainer, fadeUp } from '../../lib/animations';
 import { NODE_CONFIG } from '@shared/types';
 import type { NodeId, NodeStatus, NodeCommandResult } from '@shared/types';
+import { NodeInfoPanel } from './NodeInfoPanel';
+
+// Lazy load 3D scene to avoid blocking initial render
+const Node3DScene = lazy(() => import('./Node3DScene').then(m => ({ default: m.Node3DScene })));
+
+type ViewMode = '3d' | 'grid';
 
 const api = () => window.electronAPI;
 
@@ -62,8 +68,9 @@ const NodeCard: React.FC<{
   status: NodeStatus | undefined;
   onRefresh: (id: NodeId) => void;
   onExec: (id: NodeId, cmd: string) => void;
+  onSelect: (id: NodeId) => void;
   refreshing: boolean;
-}> = ({ nodeId, status, onRefresh, onExec, refreshing }) => {
+}> = ({ nodeId, status, onRefresh, onExec, onSelect, refreshing }) => {
   const config = NODE_CONFIG.find((n) => n.id === nodeId)!;
   const conn = status?.connection || 'offline';
   const connColor = CONNECTION_COLORS[conn];
@@ -89,23 +96,29 @@ const NodeCard: React.FC<{
   return (
     <motion.div
       variants={fadeUp}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       className="glass-2 p-5 relative overflow-hidden"
       style={{
         borderColor: `${config.color}30`,
         borderWidth: 1,
         borderStyle: 'solid',
         background: `linear-gradient(180deg, ${config.color}05 0%, transparent 40%), rgba(15,15,26,0.6)`,
+        backdropFilter: 'blur(12px)',
+        boxShadow: `0 8px 32px ${config.color}15, 0 0 0 1px ${config.color}20`,
       }}
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-bold text-sm"
+          className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-bold text-sm cursor-pointer hover:scale-110 transition-transform"
           style={{
             background: `${config.color}20`,
             border: `1px solid ${config.color}40`,
             color: config.color,
           }}
+          onClick={() => onSelect(nodeId)}
+          title="Detaylar icin tikla"
         >
           {config.name.slice(0, 2).toUpperCase()}
         </div>
@@ -197,6 +210,37 @@ const NodeCard: React.FC<{
         </div>
       )}
 
+      {/* GG Agent Status */}
+      {status?.gg_agent_status && (
+        <div className="mb-4">
+          <h4 className="text-[10px] text-vz-text-secondary uppercase tracking-wider mb-2">Good Guys Agent</h4>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-[11px]">
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{
+                  backgroundColor: '#a78bfa',
+                  boxShadow: '0 0 4px #a78bfa60',
+                }}
+              />
+              <span className="text-vz-text flex-1">
+                {status.gg_agent_status.platform === 'codex' ? 'OpenClaw Codex' : 'Claude Code'}
+              </span>
+              <span className="text-vz-muted font-mono text-[9px]">
+                {status.gg_agent_status.pc_id}
+              </span>
+            </div>
+            {status.gg_agent_status.autonomous_cron && (
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#00ff88' }} />
+                <span className="text-vz-text">Otonom Cron</span>
+                <span className="text-vz-muted font-mono text-[9px]">aktif</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Cron Jobs (VPS only) */}
       {status?.cronJobs && status.cronJobs.length > 0 && (
         <div className="mb-4">
@@ -228,7 +272,7 @@ const NodeCard: React.FC<{
             value={cmd}
             onChange={(e) => setCmd(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleExec()}
-            placeholder={nodeId === 'pc1' ? 'bash komutu...' : 'ssh komutu...'}
+            placeholder={NODE_CONFIG.find(n => n.id === nodeId)?.sshAlias === null ? 'bash komutu...' : 'ssh komutu...'}
             className="flex-1 bg-vz-bg/80 text-vz-text text-[11px] px-2.5 py-1.5 rounded-md border border-vz-border/30 font-mono placeholder:text-vz-muted/40 focus:outline-none focus:border-vz-cyan/30"
           />
           <button
@@ -276,6 +320,8 @@ const NodeCard: React.FC<{
 export const NodesView: React.FC = () => {
   const nodeStatuses = useSessionStore((s) => s.nodeStatuses);
   const [refreshing, setRefreshing] = useState<Set<NodeId>>(new Set());
+  const [viewMode, setViewMode] = useState<ViewMode>('3d');
+  const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
 
   const getStatus = useCallback(
     (id: NodeId): NodeStatus | undefined => nodeStatuses.find((s) => s.nodeId === id),
@@ -300,7 +346,7 @@ export const NodesView: React.FC = () => {
   }, []);
 
   const handleRefreshAll = useCallback(async () => {
-    const ids: NodeId[] = ['pc1', 'pc2', 'vps'];
+    const ids = NODE_CONFIG.map(n => n.id);
     setRefreshing(new Set(ids));
     try {
       const results = await Promise.all(ids.map((id) => api().node.refresh(id)));
@@ -346,19 +392,39 @@ export const NodesView: React.FC = () => {
           <div>
             <h2 className="text-base font-display font-bold text-vz-text">Altyapi</h2>
             <p className="text-[10px] text-vz-text-secondary">
-              {onlineCount}/3 cevrimici
+              {onlineCount}/{NODE_CONFIG.length} cevrimici
               {totalRAM > 0 && ` | Toplam RAM: ${(usedRAM / 1024).toFixed(1)}/${(totalRAM / 1024).toFixed(1)} GB`}
             </p>
           </div>
         </div>
-        <button
-          onClick={handleRefreshAll}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-display font-semibold text-vz-cyan hover:bg-vz-surface/60 transition-colors"
-          style={{ border: '1px solid rgba(0,204,255,0.2)' }}
-        >
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <button
+              onClick={() => setViewMode('3d')}
+              className={`px-2.5 py-1.5 text-[10px] font-display font-semibold transition-colors ${
+                viewMode === '3d' ? 'bg-vz-cyan/15 text-vz-cyan' : 'text-vz-muted hover:text-vz-text'
+              }`}
+            >
+              3D
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-2.5 py-1.5 text-[10px] font-display font-semibold transition-colors ${
+                viewMode === 'grid' ? 'bg-vz-cyan/15 text-vz-cyan' : 'text-vz-muted hover:text-vz-text'
+              }`}
+            >
+              Grid
+            </button>
+          </div>
+          <button
+            onClick={handleRefreshAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-display font-semibold text-vz-cyan hover:bg-vz-surface/60 transition-colors"
+            style={{ border: '1px solid rgba(0,204,255,0.2)' }}
+          >
           <svg
             width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            className={refreshing.size === 3 ? 'animate-spin' : ''}
+            className={refreshing.size === NODE_CONFIG.length ? 'animate-spin' : ''}
           >
             <path d="M21 2v6h-6" />
             <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
@@ -367,26 +433,55 @@ export const NodesView: React.FC = () => {
           </svg>
           Tumu Yenile
         </button>
+        </div>
       </motion.div>
+
+      {/* 3D Scene */}
+      {viewMode === '3d' && (
+        <motion.div
+          key="3d"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="h-[420px] glass-2 rounded-2xl overflow-hidden"
+          style={{ border: '1px solid rgba(0,204,255,0.1)' }}
+        >
+          <Suspense fallback={
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-vz-muted text-xs font-display">3D Sahne yukleniyor...</span>
+            </div>
+          }>
+            <Node3DScene onDeviceClick={(id) => setSelectedNode(id)} />
+          </Suspense>
+        </motion.div>
+      )}
 
       {/* Node Cards Grid */}
       <motion.div
-        className="grid grid-cols-3 gap-4"
+        className="grid grid-cols-2 xl:grid-cols-4 gap-4"
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
       >
-        {(['pc1', 'pc2', 'vps'] as NodeId[]).map((id) => (
+        {NODE_CONFIG.map((config) => config.id).map((id) => (
           <NodeCard
             key={id}
             nodeId={id}
             status={getStatus(id)}
             onRefresh={handleRefresh}
             onExec={handleExec}
+            onSelect={(nid) => setSelectedNode(nid)}
             refreshing={refreshing.has(id)}
           />
         ))}
       </motion.div>
+
+      {/* Node Info Panel */}
+      <NodeInfoPanel
+        nodeId={selectedNode}
+        status={selectedNode ? getStatus(selectedNode) : undefined}
+        onClose={() => setSelectedNode(null)}
+      />
 
       {/* Quick Actions */}
       <motion.div variants={fadeUp} initial="hidden" animate="visible">
@@ -402,12 +497,13 @@ export const NodesView: React.FC = () => {
             </div>
             Hizli Islemler
           </h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {[
               { label: 'VPS RAM', cmd: 'free -h', target: 'vps' as NodeId, color: '#00ff88' },
               { label: 'Chrome Temizle', cmd: 'bash /root/cleanup-chrome.sh', target: 'vps' as NodeId, color: '#f59e0b' },
               { label: 'Gateway Restart', cmd: 'pkill -f openclaw-gateway; sleep 2; cd /root && nohup openclaw-gateway > /dev/null 2>&1 &', target: 'vps' as NodeId, color: '#ff4444' },
               { label: 'PC2 Durum', cmd: 'systeminfo | findstr /B /C:"OS Name" /C:"Total Physical"', target: 'pc2' as NodeId, color: '#00ccff' },
+              { label: 'PC4 Durum', cmd: 'systeminfo | findstr /B /C:"OS Name" /C:"Total Physical"', target: 'pc4' as NodeId, color: '#ec4899' },
             ].map((action) => (
               <button
                 key={action.label}

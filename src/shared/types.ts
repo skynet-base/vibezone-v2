@@ -174,19 +174,31 @@ export const TERMINAL_AGENT_TYPES: AgentType[] = ['shell', 'claude', 'clawbot', 
 export const TEAM_AGENT_TYPES: AgentType[] = ['team-lead', 'designer', 'frontend', 'backend', 'qa', 'devops'];
 
 // Remote Node (Multi-PC)
-export type NodeId = 'pc1' | 'pc2' | 'vps';
+export type NodeId = 'pc1' | 'pc2' | 'vps' | 'pc4';
 export type NodeConnectionStatus = 'online' | 'offline' | 'connecting';
+export type MonitorType = 'local' | 'ssh-windows' | 'ssh-linux';
 
 export interface NodeInfo {
   id: NodeId;
   name: string;
   hostname: string;
   ip: string;
+  tailscaleIp?: string;
   user: string;
   os: string;
   role: string;
-  sshAlias: string | null; // null = local (pc1)
+  sshAlias: string | null; // null = local node
   color: string;
+  monitorType: MonitorType;
+}
+
+export interface GGAgentStatus {
+  pc_id: string;
+  platform: 'claude-code' | 'codex';
+  model_tier?: string;
+  active_tasks: number;
+  last_dispatch?: string;
+  autonomous_cron: boolean;
 }
 
 export interface NodeStatus {
@@ -199,6 +211,7 @@ export interface NodeStatus {
   services?: NodeService[];
   cronJobs?: NodeCronJob[];
   error?: string;
+  gg_agent_status?: GGAgentStatus;
 }
 
 export interface NodeService {
@@ -227,18 +240,27 @@ export interface NodeCommandResult {
 export const NODE_CONFIG: NodeInfo[] = [
   {
     id: 'pc1', name: 'Master', hostname: 'PC1',
-    ip: 'localhost', user: 'TR', os: 'Windows 11',
+    ip: 'localhost', tailscaleIp: undefined, user: 'TR', os: 'Windows 11',
     role: 'Command Center', sshAlias: null, color: '#00ccff',
+    monitorType: 'local',
   },
   {
     id: 'pc2', name: 'Skynet', hostname: 'DESKTOP-P7946G1',
-    ip: '192.168.1.33', user: 'Skynet', os: 'Windows 10',
+    ip: '192.168.1.33', tailscaleIp: '100.121.119.37', user: 'Skynet', os: 'Windows 10',
     role: 'Social Agent', sshAlias: 'pc2', color: '#f59e0b',
+    monitorType: 'ssh-windows',
   },
   {
     id: 'vps', name: 'VPS', hostname: 'srv1315341',
-    ip: '76.13.135.57', user: 'root', os: 'Ubuntu 24.04',
+    ip: '76.13.135.57', tailscaleIp: '100.101.164.20', user: 'root', os: 'Ubuntu 24.04',
     role: 'OPS Agent', sshAlias: 'vps', color: '#00ff88',
+    monitorType: 'ssh-linux',
+  },
+  {
+    id: 'pc4', name: 'Laptop', hostname: 'LAPTOP',
+    ip: 'localhost', tailscaleIp: undefined, user: 'TR', os: 'Windows 11',
+    role: 'Mobile Command', sshAlias: 'pc4', color: '#ec4899',
+    monitorType: 'ssh-windows',
   },
 ];
 
@@ -264,6 +286,7 @@ export interface AppSettings {
   windowBounds?: { x: number; y: number; width: number; height: number };
   teamProjectPath?: string;
   language?: 'tr' | 'en';
+  localNodeId?: NodeId;
 }
 
 // IPC channel names

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { useIPC } from '../../hooks/useIPC';
 import { modalVariants } from '../../lib/animations';
+import { NODE_CONFIG } from '@shared/types';
+import type { NodeId } from '@shared/types';
 
 export const SettingsModal: React.FC = () => {
   const open = useSessionStore((s) => s.settingsModalOpen);
@@ -182,6 +184,46 @@ export const SettingsModal: React.FC = () => {
                   </p>
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* Infrastructure */}
+          <section>
+            <h3 className="text-xs text-vz-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+              <span className="w-[3px] h-3.5 rounded-full bg-vz-pink" />
+              Altyapi
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-vz-text mb-2">Bu Bilgisayar (Local Node)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {NODE_CONFIG.filter(n => n.monitorType === 'local' || n.id === 'pc4').map((node) => (
+                    <button
+                      key={node.id}
+                      onClick={() => updateSettings({ localNodeId: node.id })}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all flex items-center gap-2 ${
+                        (settings.localNodeId || 'pc1') === node.id
+                          ? 'border-opacity-30 text-opacity-100'
+                          : 'border-vz-border text-vz-muted hover:border-vz-muted/50'
+                      }`}
+                      style={{
+                        borderColor: (settings.localNodeId || 'pc1') === node.id ? node.color : undefined,
+                        color: (settings.localNodeId || 'pc1') === node.id ? node.color : undefined,
+                        background: (settings.localNodeId || 'pc1') === node.id ? `${node.color}10` : undefined,
+                      }}
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: node.color }}
+                      />
+                      {node.name} ({node.id})
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-vz-muted/60 mt-1.5">
+                  Bu ayar, hangi PC'nin yerel olarak izlenecegini belirler.
+                </p>
+              </div>
             </div>
           </section>
 
