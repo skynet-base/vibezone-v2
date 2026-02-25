@@ -135,8 +135,16 @@ function createWindow(): void {
 }
 
 function createTray(): void {
-  // Create a simple 16x16 icon programmatically
-  const icon = nativeImage.createEmpty();
+  const iconPath = join(__dirname, '../../assets/icon.ico');
+  let icon: Electron.NativeImage;
+  try {
+    icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) {
+      icon = nativeImage.createEmpty();
+    }
+  } catch {
+    icon = nativeImage.createEmpty();
+  }
   tray = new Tray(icon);
 
   const contextMenu = Menu.buildFromTemplate([

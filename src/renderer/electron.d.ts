@@ -63,6 +63,13 @@ interface ElectronAPI {
     maximize: () => Promise<boolean>;
     close: () => Promise<void>;
     isMaximized: () => Promise<boolean>;
+    toggleFullscreen: () => Promise<boolean>;
+    isFullscreen: () => Promise<boolean>;
+  };
+  dialog: {
+    openFolder: () => Promise<string | null>;
+    openFile: (filters?: { name: string; extensions: string[] }[]) => Promise<string | null>;
+    saveFile: (defaultPath?: string) => Promise<string | null>;
   };
   on: (channel: string, callback: (...args: unknown[]) => void) => void;
   off: (channel: string, callback: (...args: unknown[]) => void) => void;
