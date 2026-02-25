@@ -31,7 +31,13 @@ export class ConfigManager {
   }
 
   getSettings(): AppSettings {
-    return this.store.get('settings');
+    const settings = this.store.get('settings');
+    return {
+      ...DEFAULT_SETTINGS,
+      ...settings,
+      quality: settings.quality || 'medium',
+      minimizeToTray: settings.minimizeToTray ?? false,
+    };
   }
 
   setSettings(settings: Partial<AppSettings>): AppSettings {
@@ -64,6 +70,9 @@ export class ConfigManager {
   }
 
   setWindowBounds(bounds: AppSettings['windowBounds']): void {
+    if (!bounds) return;
+    if (bounds.width < 400 || bounds.height < 300) return;
+    if (bounds.x < -10000 || bounds.y < -10000) return;
     this.setSetting('windowBounds', bounds);
   }
 }
