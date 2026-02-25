@@ -216,6 +216,26 @@ curl -s -X POST "http://127.0.0.1:$PORT/hook" -H "Content-Type: application/json
   private async startServer(): Promise<void> {
     if (this.server?.listening) return;
 
+    const MAX_RETRIES = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        await this.tryStartServer();
+        return;
+      } catch (err: any) {
+        lastError = err;
+        if (this.server) {
+          this.server.close();
+          this.server = null;
+        }
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+    throw lastError || new Error('Failed to start hook server');
+  }
+
+  private tryStartServer(): Promise<void> {
     return new Promise((resolve, reject) => {
       const MAX_BODY_SIZE = 256 * 1024; // 256KB max request body
       this.server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -252,12 +272,10 @@ curl -s -X POST "http://127.0.0.1:$PORT/hook" -H "Content-Type: application/json
 
       this.server.on('error', reject);
 
-      // Listen on random port on loopback
       this.server.listen(0, '127.0.0.1', () => {
         const addr = this.server!.address();
         if (addr && typeof addr === 'object') {
           this.port = addr.port;
-          // Write port file
           if (!existsSync(this.dataDir)) {
             mkdirSync(this.dataDir, { recursive: true });
           }
