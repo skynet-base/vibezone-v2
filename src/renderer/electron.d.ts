@@ -3,18 +3,18 @@ import type { Session, SessionConfig, SSHHost, AutocompleteResult, ProjectEntry,
 interface ElectronAPI {
   session: {
     create: (config: SessionConfig) => Promise<Session>;
-    kill: (sessionId: string) => Promise<void>;
-    sendInput: (sessionId: string, data: string) => Promise<void>;
-    resize: (sessionId: string, cols: number, rows: number) => Promise<void>;
+    kill: (sessionId: string) => Promise<boolean>;
+    sendInput: (sessionId: string, data: string) => Promise<boolean>;
+    resize: (sessionId: string, cols: number, rows: number) => Promise<boolean>;
     getAll: () => Promise<Session[]>;
     getOutput: (sessionId: string) => Promise<string>;
-    restart: (sessionId: string) => Promise<Session>;
+    restart: (sessionId: string) => Promise<Session | null>;
   };
   ssh: {
     getHosts: () => Promise<SSHHost[]>;
     addHost: (host: Omit<SSHHost, 'id' | 'isManual'>) => Promise<SSHHost>;
-    removeHost: (hostId: string) => Promise<void>;
-    test: (hostId: string) => Promise<{ success: boolean; error?: string }>;
+    removeHost: (hostId: string) => Promise<boolean>;
+    test: (host: SSHHost | string) => Promise<{ success: boolean; error?: string }>;
   };
   projects: {
     autocomplete: (query: string) => Promise<AutocompleteResult[]>;
@@ -59,9 +59,9 @@ interface ElectronAPI {
     getHomeDir: () => Promise<string>;
   };
   window: {
-    minimize: () => void;
-    maximize: () => void;
-    close: () => void;
+    minimize: () => Promise<void>;
+    maximize: () => Promise<boolean>;
+    close: () => Promise<void>;
     isMaximized: () => Promise<boolean>;
   };
   on: (channel: string, callback: (...args: unknown[]) => void) => void;
