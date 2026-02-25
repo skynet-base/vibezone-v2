@@ -3,6 +3,7 @@ import Store from 'electron-store';
 import { Task, Activity, TaskStatus, TaskPriority } from '../../shared/types';
 
 const MAX_ACTIVITIES = 500;
+const MAX_TASKS = 500;
 const VALID_STATUSES: TaskStatus[] = ['inbox', 'in_progress', 'in_review', 'done'];
 const VALID_PRIORITIES: TaskPriority[] = ['none', 'low', 'medium', 'high'];
 
@@ -79,8 +80,20 @@ export class TaskManager {
       updatedAt: now,
     };
 
-    const tasks = this.getAllTasks();
+    let tasks = this.getAllTasks();
     tasks.push(task);
+
+    if (tasks.length > MAX_TASKS) {
+      const doneTasks = tasks.filter(t => t.status === 'done');
+      const otherTasks = tasks.filter(t => t.status !== 'done');
+      if (doneTasks.length > 0) {
+        doneTasks.sort((a, b) => a.updatedAt - b.updatedAt);
+        const toRemove = doneTasks.slice(0, Math.min(doneTasks.length, tasks.length - MAX_TASKS + 1));
+        const removeIds = new Set(toRemove.map(t => t.id));
+        tasks = otherTasks.concat(doneTasks.filter(t => !removeIds.has(t.id)));
+      }
+    }
+
     this.store.set('tasks', tasks);
 
     this.pushActivity({
@@ -144,6 +157,12 @@ export class TaskManager {
 
     const filtered = tasks.filter(t => t.id !== id);
     this.store.set('tasks', filtered);
+
+    const activities = this.store.get('activities');
+    if (Array.isArray(activities)) {
+      const filteredActivities = activities.filter(a => a.taskId !== id);
+      this.store.set('activities', filteredActivities);
+    }
 
     this.pushActivity({
       type: 'task_deleted',
