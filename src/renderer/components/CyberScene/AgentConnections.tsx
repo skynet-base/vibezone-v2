@@ -19,7 +19,8 @@ const EnergyLine: React.FC<{
 }> = ({ from, to, colorA, colorB }) => {
   const lineRef = useRef<THREE.Line>(null);
   const dotRef = useRef<THREE.Mesh>(null);
-  const opacityRef = useRef(0.35);
+  const glowRef = useRef<THREE.Mesh>(null);
+  const opacityRef = useRef(0.5);
 
   const mixedColor = useMemo(() => {
     const a = new THREE.Color(colorA);
@@ -37,7 +38,7 @@ const EnergyLine: React.FC<{
     const mat = new THREE.LineBasicMaterial({
       color: mixedColor,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.5,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       toneMapped: false,
@@ -49,20 +50,20 @@ const EnergyLine: React.FC<{
     const t = state.clock.elapsedTime;
 
     // Pulse opacity
-    opacityRef.current = 0.25 + Math.sin(t * 2) * 0.1;
+    opacityRef.current = 0.4 + Math.sin(t * 2) * 0.15;
     if (lineRef.current) {
       const mat = lineRef.current.material as THREE.LineBasicMaterial;
       mat.opacity = opacityRef.current;
     }
 
     // Animate energy dot along the line
-    if (dotRef.current) {
+    if (dotRef.current && glowRef.current) {
       const progress = (t * 0.4) % 1;
-      dotRef.current.position.set(
-        from[0] + (to[0] - from[0]) * progress,
-        from[1] + (to[1] - from[1]) * progress,
-        from[2] + (to[2] - from[2]) * progress,
-      );
+      const x = from[0] + (to[0] - from[0]) * progress;
+      const y = from[1] + (to[1] - from[1]) * progress;
+      const z = from[2] + (to[2] - from[2]) * progress;
+      dotRef.current.position.set(x, y, z);
+      glowRef.current.position.set(x, y, z);
     }
   });
 
@@ -73,11 +74,24 @@ const EnergyLine: React.FC<{
 
       {/* Energy dot */}
       <mesh ref={dotRef}>
-        <sphereGeometry args={[0.03, 8, 8]} />
+        <sphereGeometry args={[0.05, 8, 8]} />
         <meshBasicMaterial
           color={mixedColor}
           transparent
           opacity={0.8}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+
+      {/* Glow shell around energy dot */}
+      <mesh ref={glowRef}>
+        <sphereGeometry args={[0.12, 8, 8]} />
+        <meshBasicMaterial
+          color={mixedColor}
+          transparent
+          opacity={0.25}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -97,7 +111,7 @@ const GroupHalo: React.FC<{
   useFrame((state) => {
     if (meshRef.current) {
       const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.04 + Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
+      mat.opacity = 0.08 + Math.sin(state.clock.elapsedTime * 1.5) * 0.03;
     }
   });
 
@@ -107,7 +121,7 @@ const GroupHalo: React.FC<{
       <meshBasicMaterial
         color={color}
         transparent
-        opacity={0.05}
+        opacity={0.1}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
         toneMapped={false}
