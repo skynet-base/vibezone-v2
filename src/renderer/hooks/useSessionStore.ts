@@ -20,8 +20,10 @@ interface SessionStore {
   // Terminal
   terminalOpen: boolean;
   terminalHeight: number;
+  sidebarWidth: number;
   toggleTerminal: () => void;
   setTerminalHeight: (height: number) => void;
+  setSidebarWidth: (width: number) => void;
 
   // SSH Hosts
   sshHosts: SSHHost[];
@@ -104,8 +106,10 @@ export const useSessionStore = create<SessionStore>((set) => ({
   // Terminal
   terminalOpen: false,
   terminalHeight: 350,
+  sidebarWidth: 240,
   toggleTerminal: () => set((state) => ({ terminalOpen: !state.terminalOpen })),
   setTerminalHeight: (height) => set({ terminalHeight: height }),
+  setSidebarWidth: (width) => set({ sidebarWidth: width }),
 
   // SSH Hosts
   sshHosts: [],

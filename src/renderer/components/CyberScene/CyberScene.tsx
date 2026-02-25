@@ -1,5 +1,6 @@
 import React, { Suspense, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { Platform } from './Platform';
 import { AgentOrbs } from './AgentOrbs';
@@ -45,18 +46,18 @@ const SceneContent: React.FC = () => {
   return (
     <>
       {/* Lighting */}
-      <ambientLight intensity={0.15} />
+      <ambientLight intensity={0.3} />
       <pointLight position={[5, 5, 5]} color="#00ccff" intensity={0.4} distance={20} />
       <pointLight position={[-5, 3, -5]} color="#8b5cf6" intensity={0.3} distance={20} />
       <pointLight position={[0, 6, 0]} color="#ffffff" intensity={0.2} distance={15} />
 
       {/* Fog */}
-      <fog attach="fog" args={['#050508', 8, 20]} />
+      <fog attach="fog" args={['#050508', 12, 28]} />
 
       {/* Scene objects */}
       <Suspense fallback={<SceneFallback />}>
         <Platform />
-        {sessions.length > 0 && (
+        {sessions.length > 0 ? (
           <>
             <AgentConnections sessions={sessions} tasks={tasks} positions={positions} />
             <AgentOrbs
@@ -66,6 +67,27 @@ const SceneContent: React.FC = () => {
               positions={positions}
             />
           </>
+        ) : (
+          <group>
+            <Text
+              position={[0, 1.5, 0]}
+              fontSize={0.8}
+              color="#00ccff"
+              anchorX="center"
+              anchorY="middle"
+            >
+              VIBEZONE
+            </Text>
+            <Text
+              position={[0, 0.8, 0]}
+              fontSize={0.2}
+              color="#666680"
+              anchorX="center"
+              anchorY="middle"
+            >
+              Agent ekleyerek baslayin
+            </Text>
+          </group>
         )}
         <CommandRing />
         <DataColumns />

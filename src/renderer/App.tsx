@@ -91,6 +91,9 @@ const App: React.FC = () => {
   useIPC();
   const activeView = useSessionStore((s) => s.activeView);
   const setActiveView = useSessionStore((s) => s.setActiveView);
+  const terminalOpen = useSessionStore((s) => s.terminalOpen);
+  const terminalHeight = useSessionStore((s) => s.terminalHeight);
+  const sidebarWidth = useSessionStore((s) => s.sidebarWidth);
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-vz-bg">
@@ -102,12 +105,12 @@ const App: React.FC = () => {
 
         {/* The Bento Container */}
         <div className="w-full h-full grid gap-4" style={{
-          gridTemplateColumns: '240px 1fr',
-          gridTemplateRows: '1fr 300px',
-          gridTemplateAreas: `
+          gridTemplateColumns: `${sidebarWidth}px 1fr`,
+          gridTemplateRows: terminalOpen ? `1fr ${terminalHeight}px` : '1fr',
+          gridTemplateAreas: terminalOpen ? `
             "sidebar main"
             "sidebar terminal"
-          `
+          ` : `"sidebar main"`
         }}>
 
           {/* Bento Cell: Sidebar */}
@@ -150,9 +153,11 @@ const App: React.FC = () => {
           </div>
 
           {/* Bento Cell: Terminal */}
+          {terminalOpen && (
           <div className="glass-2 rounded-2xl overflow-hidden shadow-glass-inner" style={{ gridArea: 'terminal' }}>
             <TerminalPanel />
           </div>
+          )}
 
         </div>
       </div>

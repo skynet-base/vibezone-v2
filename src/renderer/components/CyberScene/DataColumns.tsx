@@ -23,7 +23,7 @@ const DataColumn: React.FC<{ def: ColumnDef }> = ({ def }) => {
   useFrame((state) => {
     if (meshRef.current) {
       const material = meshRef.current.material as THREE.MeshBasicMaterial;
-      const pulse = 0.08 + 0.04 * Math.sin(state.clock.elapsedTime * 1.2 + def.position[0]);
+      const pulse = 0.15 + 0.08 * Math.sin(state.clock.elapsedTime * 1.2 + def.position[0]);
       material.opacity = pulse;
     }
   });
@@ -37,7 +37,7 @@ const DataColumn: React.FC<{ def: ColumnDef }> = ({ def }) => {
       <meshBasicMaterial
         color={color}
         transparent
-        opacity={0.1}
+        opacity={0.2}
         toneMapped={false}
       />
     </mesh>

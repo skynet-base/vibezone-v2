@@ -27,9 +27,31 @@ export const Sidebar: React.FC = () => {
   const setCreateAgentModalOpen = useSessionStore((s) => s.setCreateAgentModalOpen);
   const toggleTerminal = useSessionStore((s) => s.toggleTerminal);
   const terminalOpen = useSessionStore((s) => s.terminalOpen);
+  const sidebarWidth = useSessionStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useSessionStore((s) => s.setSidebarWidth);
   const { killSession, importTeam, quickCreateShell } = useIPC();
 
   const [sshExpanded, setSshExpanded] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.min(400, Math.max(180, moveEvent.clientX));
+      setSidebarWidth(newWidth);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [setSidebarWidth]);
 
   const terminalSessions = useMemo(
     () => sessions.filter(s => !s.category || s.category === 'terminal'),
@@ -143,7 +165,13 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="w-60 h-full flex flex-col glass-card border-none mr-4">
+    <div className="h-full flex flex-col glass-card border-none mr-4" style={{ width: sidebarWidth }}>
+      {/* Resize handle */}
+      <div
+        className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:border-l hover:border-vz-cyan/30 transition-colors ${isResizing ? 'bg-vz-cyan/50' : ''}`}
+        style={{ zIndex: 20 }}
+        onMouseDown={handleResizeStart}
+      />
       {/* Logo area */}
       <div className="px-4 py-3 border-b border-vz-border/50 relative z-10">
         <h1
