@@ -108,6 +108,11 @@ const NodeCard: React.FC<{
         boxShadow: `0 8px 32px ${config.color}15, 0 0 0 1px ${config.color}20`,
       }}
     >
+      {/* Offline overlay */}
+      {conn === 'offline' && (
+        <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none rounded-2xl" />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div
@@ -134,6 +139,9 @@ const NodeCard: React.FC<{
               }}
             />
             <span className="text-[10px] text-vz-muted uppercase">{conn}</span>
+            {conn === 'offline' && (
+              <span className="text-[8px] px-1.5 py-0.5 rounded bg-vz-red/20 text-vz-red font-medium">Cevrimdisi</span>
+            )}
           </div>
           <p className="text-[10px] text-vz-text-secondary truncate">
             {config.role} - {config.os} - {config.ip}
@@ -278,14 +286,18 @@ const NodeCard: React.FC<{
           <button
             onClick={handleExec}
             disabled={executing || !cmd.trim()}
-            className="px-2.5 py-1.5 rounded-md text-[10px] font-display font-semibold transition-colors"
+            className="px-2.5 py-1.5 rounded-md text-[10px] font-display font-semibold transition-colors disabled:opacity-50"
             style={{
               background: executing ? 'rgba(255,255,255,0.05)' : `${config.color}20`,
               border: `1px solid ${config.color}30`,
               color: config.color,
             }}
           >
-            {executing ? '...' : 'Calistir'}
+            {executing ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" className="animate-spin">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="32" strokeDashoffset="12" />
+              </svg>
+            ) : 'Calistir'}
           </button>
         </div>
         {cmdResult && (
