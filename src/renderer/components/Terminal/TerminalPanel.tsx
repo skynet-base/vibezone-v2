@@ -116,8 +116,11 @@ export const TerminalPanel: React.FC = () => {
     const el = terminalRefs.current.get(activeSessionId);
     if (el) {
       terminalManager.mount(activeSessionId, el);
-      // Auto-focus terminal so user can type immediately
-      setTimeout(() => terminalManager.focus(activeSessionId), 100);
+      const timer = setTimeout(() => {
+        terminalManager.fit(activeSessionId);
+        terminalManager.focus(activeSessionId);
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [activeSessionId, terminalOpen]);
 
@@ -180,6 +183,31 @@ export const TerminalPanel: React.FC = () => {
 
   return (
     <AnimatePresence>
+      {terminalOpen && sessions.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="relative flex flex-col h-full rounded-2xl overflow-hidden glass-card"
+          style={{ boxShadow: 'var(--glass-shadow)' }}
+          ref={containerRef}
+        >
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-vz-muted">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="opacity-30">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M6 9L10 12L6 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="text-sm">Terminal yok</p>
+            <button
+              onClick={quickCreateShell}
+              className="px-4 py-2 bg-vz-cyan/20 text-vz-cyan rounded-lg hover:bg-vz-cyan/30 transition-all duration-300 neon-border-cyan text-sm"
+            >
+              Terminal Ac
+            </button>
+          </div>
+        </motion.div>
+      )}
       {terminalOpen && sessions.length > 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -318,7 +346,7 @@ export const TerminalPanel: React.FC = () => {
             )}
           </div>
         </motion.div>
-      )}
+        )}
     </AnimatePresence>
   );
 };
