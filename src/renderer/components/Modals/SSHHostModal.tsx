@@ -69,7 +69,7 @@ export const SSHHostModal: React.FC = () => {
   };
 
   const handleRemove = async (hostId: string) => {
-    if (!confirm('Remove this SSH host?')) return;
+    if (!confirm('Bu SSH host\'u kaldır?')) return;
     await removeSshHost(hostId);
     if (testResult?.id === hostId) setTestResult(null);
   };
@@ -110,7 +110,7 @@ export const SSHHostModal: React.FC = () => {
         {/* Host list */}
         <div className="space-y-2 mb-4">
           {sshHosts.length === 0 && (
-            <p className="text-xs text-vz-muted text-center py-4">No SSH hosts configured.</p>
+            <p className="text-xs text-vz-muted text-center py-4">SSH host yapılandırılmamış.</p>
           )}
           {sshHosts.map((host) => (
             <div
@@ -124,7 +124,7 @@ export const SSHHostModal: React.FC = () => {
                 </div>
                 {!host.isManual && (
                   <span className="text-[9px] text-vz-amber bg-vz-amber/10 px-1 rounded mt-0.5 inline-block">
-                    from ssh config
+                    ssh config dosyasından
                   </span>
                 )}
               </div>
@@ -137,7 +137,7 @@ export const SSHHostModal: React.FC = () => {
                       testResult.success ? 'bg-vz-green shadow-neon-green' : 'bg-vz-red shadow-neon-pink'
                     }`}
                   />
-                  {testResult.success ? 'Connected' : testResult.error || 'Failed'}
+                  {testResult.success ? 'Bağlandı' : testResult.error || 'Başarısız'}
                 </span>
               )}
 
@@ -146,12 +146,12 @@ export const SSHHostModal: React.FC = () => {
                 disabled={testingId === host.id}
                 className="btn-secondary text-xs py-1 px-2 disabled:opacity-40"
               >
-                {testingId === host.id ? 'Testing...' : 'Test'}
+                {testingId === host.id ? 'Test ediliyor...' : 'Test'}
               </button>
               <button
                 onClick={() => handleRemove(host.id)}
                 className="p-1.5 rounded hover:bg-vz-red/20 text-vz-muted hover:text-vz-red transition-colors"
-                title="Remove"
+                title="Kaldır"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
@@ -164,11 +164,11 @@ export const SSHHostModal: React.FC = () => {
         {/* Add form toggle */}
         {!showForm ? (
           <button onClick={() => setShowForm(true)} className="btn-primary w-full">
-            Add SSH Host
+            SSH Host Ekle
           </button>
         ) : (
           <form onSubmit={handleAdd} className="space-y-3 border-t border-vz-border pt-4">
-            <div className="text-xs text-vz-muted font-medium mb-2">Add New Host</div>
+            <div className="text-xs text-vz-muted font-medium mb-2">Yeni Host Ekle</div>
 
             <div>
               <label className="block text-xs text-vz-muted mb-1">Name</label>
@@ -233,14 +233,14 @@ export const SSHHostModal: React.FC = () => {
 
             <div className="flex gap-3">
               <button type="button" onClick={resetForm} className="btn-secondary flex-1">
-                Cancel
+                İptal
               </button>
               <button
                 type="submit"
                 disabled={submitting}
                 className="btn-primary flex-1 disabled:opacity-40"
               >
-                {submitting ? 'Adding...' : 'Add Host'}
+                {submitting ? 'Ekleniyor...' : 'Host Ekle'}
               </button>
             </div>
           </form>
