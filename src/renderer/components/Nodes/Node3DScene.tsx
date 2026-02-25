@@ -1,6 +1,6 @@
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
+import { Sparkles, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { DeviceModel } from './DeviceModel';
@@ -145,6 +145,20 @@ const SceneContent: React.FC<{
         />
       )}
 
+      {/* Camera controls */}
+      <OrbitControls
+        enablePan={false}
+        enableZoom={true}
+        enableRotate={true}
+        minDistance={4}
+        maxDistance={16}
+        minPolarAngle={Math.PI / 6}
+        maxPolarAngle={Math.PI / 2.2}
+        target={[0, 0, 0.5]}
+        enableDamping={true}
+        dampingFactor={0.08}
+      />
+
       {/* Post-processing */}
       {quality === 'high' && (
         <EffectComposer>
@@ -162,6 +176,7 @@ export const Node3DScene: React.FC<{
 }> = ({ onDeviceClick }) => {
   const nodeStatuses = useSessionStore((s) => s.nodeStatuses);
   const quality = useSessionStore((s) => s.settings?.quality ?? 'high');
+  const [sceneReady, setSceneReady] = useState(false);
 
   return (
     <div className="w-full h-full min-h-[400px] rounded-2xl overflow-hidden relative">
@@ -174,6 +189,7 @@ export const Node3DScene: React.FC<{
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
         }}
+        onCreated={() => setSceneReady(true)}
       >
         <Suspense fallback={null}>
           <SceneContent
@@ -183,6 +199,14 @@ export const Node3DScene: React.FC<{
           />
         </Suspense>
       </Canvas>
+
+      {/* Loading overlay */}
+      {!sceneReady && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-vz-bg/80 backdrop-blur-sm z-10 transition-opacity duration-500">
+          <div className="w-8 h-8 border-2 border-vz-cyan/30 border-t-vz-cyan rounded-full animate-spin mb-3" />
+          <p className="text-xs text-vz-muted font-display">3D sahne hazirlaniyor...</p>
+        </div>
+      )}
 
       {/* Overlay gradient at bottom for fade */}
       <div

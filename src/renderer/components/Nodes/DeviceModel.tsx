@@ -13,6 +13,8 @@ const GLTF_PATHS: Record<string, string> = {
 };
 
 // Hook to check if a GLB model file exists
+// Note: In Electron, fetch uses file:// protocol for local assets.
+// Models should be placed in the public/models/ directory during development.
 function useModelAvailable(deviceType: string): boolean {
   const [available, setAvailable] = useState(false);
   useEffect(() => {
