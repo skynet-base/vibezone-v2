@@ -278,14 +278,16 @@ export const DashboardView: React.FC = () => {
 
           {recentActivities.length === 0 ? (
             <div className="text-center py-8">
-              <div
+              <motion.div
                 className="w-10 h-10 rounded-lg mx-auto mb-3 flex items-center justify-center opacity-40"
                 style={{ background: 'rgba(0,204,255,0.1)', border: '1px solid rgba(0,204,255,0.15)' }}
+                animate={{ scale: [1, 1.05, 1], opacity: [0.4, 0.5, 0.4] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ccff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
-              </div>
+              </motion.div>
               <p className="text-xs text-vz-muted/60 mb-1">
                 Henuz aktivite yok
               </p>
