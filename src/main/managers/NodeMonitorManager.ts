@@ -280,10 +280,13 @@ export class NodeMonitorManager {
     const localId = this.getLocalNodeId();
 
     for (const node of NODE_CONFIG) {
-      try {
-        const status = this.statuses.get(node.id);
-        if (!status || (node.id !== localId && status.connection !== 'online')) continue;
+      const status = this.statuses.get(node.id);
+      if (!status || (node.id !== localId && status.connection !== 'online')) {
+        if (status) status.gg_agent_status = undefined;
+        continue;
+      }
 
+      try {
         let result;
         if (node.id === localId) {
           result = await execFileAsync('bash', ['-c', `${ggToolsCmd} pc-identity`], {
@@ -301,14 +304,18 @@ export class NodeMonitorManager {
         }
         const data = JSON.parse(result.stdout.trim());
         if (data.pc_id || node.id === localId) {
-          status!.gg_agent_status = {
+          status.gg_agent_status = {
             pc_id: data.pc_id || node.id,
             platform: data.platform || 'claude-code',
             active_tasks: 0,
             autonomous_cron: data.autonomous_cron || false,
           };
+        } else {
+          status.gg_agent_status = undefined;
         }
-      } catch { /* GG not installed on this node */ }
+      } catch {
+        status.gg_agent_status = undefined;
+      }
     }
   }
 
