@@ -44,6 +44,7 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
   const ringRef = useRef<THREE.Mesh>(null);
   const coreRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const fresnelRef = useRef<THREE.Mesh>(null);
   const tempVec = useRef(new THREE.Vector3());
   const [hovered, setHovered] = useState(false);
   const clickBounce = useRef(0);
@@ -107,6 +108,11 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
       if (clickEmissive.current < 0.01) clickEmissive.current = 0;
     }
 
+    // Update Fresnel shader intensity reactively
+    if (fresnelRef.current && (fresnelRef.current.material as THREE.ShaderMaterial).uniforms) {
+      (fresnelRef.current.material as THREE.ShaderMaterial).uniforms.uIntensity.value = hovered ? 1.4 : 0.9;
+    }
+
     // Hover scale + click bounce
     if (groupRef.current) {
       const bounce = 1.0 + clickBounce.current * 0.15;
@@ -145,7 +151,7 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
       </mesh>
 
       {/* Fresnel rim glow */}
-      <mesh>
+      <mesh ref={fresnelRef}>
         <icosahedronGeometry args={[0.38, 3]} />
         <shaderMaterial
           vertexShader={`
@@ -170,7 +176,7 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
           `}
           uniforms={{
             uColor: { value: new THREE.Color(agentInfo.color) },
-            uIntensity: { value: hovered ? 1.4 : 0.9 },
+            uIntensity: { value: 0.9 },
           }}
           transparent={true}
           depthWrite={false}

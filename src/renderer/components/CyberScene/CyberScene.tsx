@@ -9,7 +9,6 @@ import { AgentConnections } from './AgentConnections';
 import { CommandRing } from './CommandRing';
 import { DataColumns } from './DataColumns';
 import { AmbientParticles } from './AmbientParticles';
-import { CameraController } from './CameraController';
 import { PostEffects } from './PostEffects';
 import { useAgentPositions } from './hooks/useAgentPositions';
 
@@ -136,17 +135,17 @@ const SceneContent: React.FC = () => {
       </Suspense>
 
       {/* Camera */}
-      <OrbitControls 
-        enablePan={false} 
-        enableZoom={true} 
+      <OrbitControls
+        enablePan={false}
+        enableZoom={true}
         enableRotate={true}
-        minDistance={5} 
-        maxDistance={20} 
+        minDistance={5}
+        maxDistance={20}
         maxPolarAngle={Math.PI / 2.2}
-        enableDamping 
-        dampingFactor={0.08} 
+        target={[0, 0.3, 0]}
+        enableDamping
+        dampingFactor={0.08}
       />
-      <CameraController />
 
       {/* Post-processing */}
       <PostEffects quality={quality} />

@@ -335,6 +335,12 @@ export const NodesView: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('3d');
   const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
 
+  // Swarm Test state
+  type SwarmResult = { nodeId: NodeId; label: string; status: 'idle' | 'running' | 'ok' | 'fail'; output: string };
+  const [swarmRunning, setSwarmRunning] = useState(false);
+  const [swarmResults, setSwarmResults] = useState<SwarmResult[]>([]);
+  const [swarmOpen, setSwarmOpen] = useState(false);
+
   const getStatus = useCallback(
     (id: NodeId): NodeStatus | undefined => nodeStatuses.find((s) => s.nodeId === id),
     [nodeStatuses]
@@ -372,6 +378,35 @@ export const NodesView: React.FC = () => {
   const handleExec = useCallback(async (id: NodeId, cmd: string) => {
     return api().node.exec(id, cmd);
   }, []);
+
+  const handleSwarmTest = useCallback(async () => {
+    if (swarmRunning) return;
+    const WRITE_CMD = `node -e "const fs=require('fs'),os=require('os');const c='VZ Swarm Test OK\\nPC: '+os.hostname()+'\\nPlatform: '+process.platform+'\\nZaman: '+new Date().toISOString()+'\\n';fs.writeFileSync(os.homedir()+'/vz-swarm-test.txt',c);console.log('[OK] '+os.homedir()+'/vz-swarm-test.txt');console.log(c);"`;
+    const targets: { nodeId: NodeId; label: string }[] = [
+      { nodeId: 'pc1', label: 'PC1 (mlo)' },
+      { nodeId: 'pc2', label: 'PC2 (Skynet)' },
+      { nodeId: 'vps', label: 'VPS (srv)' },
+    ];
+
+    setSwarmRunning(true);
+    setSwarmOpen(true);
+    setSwarmResults(targets.map((t) => ({ ...t, status: 'running', output: '' })));
+
+    const results = await Promise.allSettled(
+      targets.map((t) => api().node.exec(t.nodeId, WRITE_CMD))
+    );
+
+    setSwarmResults(
+      targets.map((t, i) => {
+        const r = results[i];
+        if (r.status === 'fulfilled') {
+          return { ...t, status: r.value.exitCode === 0 ? 'ok' : 'fail', output: r.value.output };
+        }
+        return { ...t, status: 'fail', output: String((r as PromiseRejectedResult).reason) };
+      })
+    );
+    setSwarmRunning(false);
+  }, [swarmRunning]);
 
   // Summary stats
   const onlineCount = nodeStatuses.filter((s) => s.connection === 'online').length;
@@ -510,6 +545,105 @@ export const NodesView: React.FC = () => {
             </div>
             Hizli Islemler
           </h3>
+          {/* Swarm Test button */}
+          <motion.button
+            onClick={handleSwarmTest}
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.97 }}
+            disabled={swarmRunning}
+            className="w-full mb-3 p-3 rounded-xl text-left flex items-center gap-3 transition-all"
+            style={{
+              background: swarmRunning
+                ? 'rgba(0,240,255,0.04)'
+                : 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(178,0,255,0.06) 100%)',
+              border: `1px solid ${swarmRunning ? 'rgba(0,240,255,0.15)' : 'rgba(0,240,255,0.25)'}`,
+            }}
+          >
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.2)' }}
+            >
+              {swarmRunning ? (
+                <motion.div
+                  className="w-4 h-4 border-2 border-vz-cyan border-t-transparent rounded-full"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                />
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F0FF" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <circle cx="3" cy="12" r="2" /><circle cx="21" cy="12" r="2" /><circle cx="12" cy="3" r="2" /><circle cx="12" cy="21" r="2" />
+                  <line x1="5" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="19" y2="12" />
+                  <line x1="12" y1="5" x2="12" y2="9" /><line x1="12" y1="15" x2="12" y2="19" />
+                </svg>
+              )}
+            </div>
+            <div>
+              <div className="text-xs font-semibold" style={{ color: '#00F0FF' }}>
+                {swarmRunning ? 'Swarm çalışıyor...' : '3-PC Swarm Test'}
+              </div>
+              <div className="text-[10px] text-vz-muted mt-0.5">PC1 + PC2 + VPS paralel test dosyası yazar</div>
+            </div>
+            {swarmResults.length > 0 && !swarmRunning && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setSwarmOpen(true); }}
+                className="ml-auto text-[10px] px-2 py-1 rounded-md"
+                style={{ color: '#00F0FF', background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.15)' }}
+              >
+                Sonuçlar →
+              </button>
+            )}
+          </motion.button>
+
+          {/* Swarm Results panel */}
+          <AnimatePresence>
+            {swarmOpen && swarmResults.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-3 overflow-hidden"
+              >
+                <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(5,5,12,0.8)', border: '1px solid rgba(0,240,255,0.1)' }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono text-vz-muted uppercase tracking-widest">Swarm Sonuçları</span>
+                    <button onClick={() => setSwarmOpen(false)} className="text-vz-muted hover:text-vz-text text-xs">✕</button>
+                  </div>
+                  {swarmResults.map((r, i) => (
+                    <motion.div
+                      key={r.nodeId}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className="flex items-start gap-2 p-2 rounded-lg"
+                      style={{ background: 'rgba(255,255,255,0.02)' }}
+                    >
+                      <div className="mt-0.5 flex-shrink-0">
+                        {r.status === 'running' && (
+                          <motion.div className="w-3 h-3 border border-vz-cyan border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }} />
+                        )}
+                        {r.status === 'ok' && <span className="text-[#00ff88] text-xs">✓</span>}
+                        {r.status === 'fail' && <span className="text-[#ff4444] text-xs">✗</span>}
+                        {r.status === 'idle' && <span className="text-vz-muted text-xs">○</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-semibold" style={{ color: r.status === 'ok' ? '#00ff88' : r.status === 'fail' ? '#ff4444' : '#00F0FF' }}>
+                          {r.label}
+                        </div>
+                        {r.output && (
+                          <div className="text-[9px] font-mono text-vz-muted mt-0.5 truncate">
+                            {r.output.split('\n')[0]}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {[
               { label: 'VPS RAM', cmd: 'free -h', target: 'vps' as NodeId, color: '#00ff88' },
