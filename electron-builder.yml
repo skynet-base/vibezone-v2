@@ -21,13 +21,23 @@ asarUnpack:
 
 npmRebuild: false
 
+publish:
+  provider: github
+  owner: vibezone
+  repo: vibezone-v2
+
 win:
   signAndEditExecutable: false
   target:
     - target: nsis
       arch: [x64]
+  icon: assets/icon.ico
 
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  uninstallDisplayName: VibeZone v2

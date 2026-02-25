@@ -1,6 +1,6 @@
 {
   "name": "vibezone-v2",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "VibeZone v2 - Electron Multi-Agent Dashboard",
   "main": "dist/main/main/index.js",
   "scripts": {
@@ -15,6 +15,7 @@
     "clean": "node -e \"const fs=require('fs');['dist'].forEach(d=>{if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true})}})\"",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "postinstall": "electron-builder install-app-deps",
     "package": "npm run build && electron-builder",
     "rebuild": "npx @electron/rebuild -f -w node-pty"
   },
@@ -23,6 +24,7 @@
     "@react-three/fiber": "^8.18.0",
     "@react-three/postprocessing": "^2.19.1",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.0",
     "node-pty": "^1.0.0",
     "ssh-config": "^5.0.0",
     "ssh2": "^1.16.0",

@@ -1,5 +1,12 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
 import { join } from 'path';
+// electron-updater is loaded dynamically to avoid errors when not installed
+let autoUpdater: any = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch {
+  // electron-updater not available (dev mode or not installed)
+}
 import { SessionManager } from './managers/SessionManager';
 import { SSHManager } from './managers/SSHManager';
 import { ProjectsManager } from './managers/ProjectsManager';
@@ -203,6 +210,24 @@ if (!gotLock) {
       hookManager.setup().catch(() => {
         // Hook setup failed silently
       });
+    }
+
+    // Auto-update (only in packaged builds with electron-updater available)
+    if (app.isPackaged && autoUpdater) {
+      autoUpdater.autoDownload = true;
+      autoUpdater.autoInstallOnAppQuit = true;
+
+      autoUpdater.on('update-available', (info: { version: string }) => {
+        mainWindow?.webContents.send('update:available', info.version);
+      });
+      autoUpdater.on('update-downloaded', (info: { version: string }) => {
+        mainWindow?.webContents.send('update:downloaded', info.version);
+      });
+      autoUpdater.on('error', (err: Error) => {
+        console.error('Auto-update error:', err);
+      });
+
+      autoUpdater.checkForUpdatesAndNotify();
     }
   });
 
