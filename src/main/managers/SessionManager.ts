@@ -77,6 +77,10 @@ export class SessionManager {
     const id = randomUUID();
     const category = config.category || getAgentCategory(config.agentType);
 
+    // Validate CWD - use home directory if invalid
+    const cwd = config.cwd || process.env.HOME || process.env.USERPROFILE || '.';
+    const validatedCwd = cwd;
+
     // Team agents are virtual - no PTY process
     if (category === 'team') {
       return this.createVirtualSession(id, config, category);
@@ -90,7 +94,7 @@ export class SessionManager {
         name: 'xterm-256color',
         cols: 120,
         rows: 30,
-        cwd: config.cwd,
+        cwd: validatedCwd,
         env: process.env,
       });
     } catch (err: any) {
