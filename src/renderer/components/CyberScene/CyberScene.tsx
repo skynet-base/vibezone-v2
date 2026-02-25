@@ -1,6 +1,7 @@
-import React, { Suspense, useCallback } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Text } from '@react-three/drei';
+import React, { Suspense, useCallback, useState, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Text, OrbitControls } from '@react-three/drei';
+import * as THREE from 'three';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { Platform } from './Platform';
 import { AgentOrbs } from './AgentOrbs';
@@ -18,6 +19,44 @@ const SceneFallback: React.FC = () => (
     <meshBasicMaterial color="#00ccff" wireframe />
   </mesh>
 );
+
+const DemoOrb: React.FC = () => {
+  const orbRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    if (orbRef.current) {
+      const t = state.clock.elapsedTime;
+      orbRef.current.rotation.y = t * 0.3;
+      orbRef.current.rotation.x = t * 0.15;
+      const scale = 1 + 0.08 * Math.sin(t * 2);
+      orbRef.current.scale.setScalar(scale);
+    }
+    if (ringRef.current) {
+      ringRef.current.rotation.z = -state.clock.elapsedTime * 0.2;
+      ringRef.current.rotation.x = Math.PI / 2;
+    }
+  });
+
+  return (
+    <group position={[0, 0.5, 0]}>
+      <mesh ref={orbRef}>
+        <icosahedronGeometry args={[0.6, 1]} />
+        <meshStandardMaterial
+          color="#00ffff"
+          emissive="#00ffff"
+          emissiveIntensity={0.4}
+          metalness={0.8}
+          roughness={0.2}
+        />
+      </mesh>
+      <mesh ref={ringRef}>
+        <torusGeometry args={[1.2, 0.02, 16, 64]} />
+        <meshBasicMaterial color="#00ffff" transparent opacity={0.3} />
+      </mesh>
+    </group>
+  );
+};
 
 const SceneContent: React.FC = () => {
   const sessions = useSessionStore((s) => s.sessions);
@@ -69,8 +108,9 @@ const SceneContent: React.FC = () => {
           </>
         ) : (
           <group>
+            <DemoOrb />
             <Text
-              position={[0, 1.5, 0]}
+              position={[0, 1.8, 0]}
               fontSize={0.8}
               color="#00ccff"
               anchorX="center"
@@ -95,6 +135,16 @@ const SceneContent: React.FC = () => {
       </Suspense>
 
       {/* Camera */}
+      <OrbitControls 
+        enablePan={false} 
+        enableZoom={true} 
+        enableRotate={true}
+        minDistance={5} 
+        maxDistance={20} 
+        maxPolarAngle={Math.PI / 2.2}
+        enableDamping 
+        dampingFactor={0.08} 
+      />
       <CameraController />
 
       {/* Post-processing */}
@@ -104,6 +154,8 @@ const SceneContent: React.FC = () => {
 };
 
 export const CyberScene: React.FC = () => {
+  const [sceneReady, setSceneReady] = useState(false);
+
   return (
     <div className="w-full h-full" style={{ background: '#050508' }}>
       <Canvas
@@ -113,13 +165,19 @@ export const CyberScene: React.FC = () => {
           antialias: true,
           alpha: false,
           powerPreference: 'high-performance',
-          toneMapping: 3, // ACESFilmicToneMapping
+          toneMapping: 3,
         }}
         style={{ width: '100%', height: '100%' }}
+        onCreated={() => setSceneReady(true)}
       >
         <color attach="background" args={['#050508']} />
         <SceneContent />
       </Canvas>
+      {!sceneReady && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#050508]">
+          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
     </div>
   );
 };
