@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { useIPC } from '../../hooks/useIPC';
@@ -6,6 +6,8 @@ import type { Task, TaskStatus, TaskPriority } from '@shared/types';
 import { TaskColumn } from './TaskColumn';
 import { ActivityFeed } from './ActivityFeed';
 import { NewTaskForm } from './NewTaskForm';
+import { useWidgetLayout } from '../../hooks/useWidgetLayout';
+import { WidgetCard } from '../UI/WidgetCard';
 
 const COLUMNS: { status: TaskStatus; title: string; emoji: string }[] = [
   { status: 'inbox', title: 'Gelen Kutusu', emoji: '\uD83D\uDCE5' },
@@ -13,6 +15,20 @@ const COLUMNS: { status: TaskStatus; title: string; emoji: string }[] = [
   { status: 'in_review', title: 'Incelemede', emoji: '\uD83D\uDC40' },
   { status: 'done', title: 'Tamamlandi', emoji: '\u2705' },
 ];
+
+const KanbanIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="5" height="18" rx="1" />
+    <rect x="10" y="3" width="5" height="12" rx="1" />
+    <rect x="17" y="3" width="5" height="15" rx="1" />
+  </svg>
+);
+
+const ActivityIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+  </svg>
+);
 
 export const TaskBoard: React.FC = () => {
   const tasks = useSessionStore((s) => s.tasks);
@@ -25,6 +41,9 @@ export const TaskBoard: React.FC = () => {
   const [showNewTaskForm, setShowNewTaskForm] = useState(false);
   const [showActivityFeed, setShowActivityFeed] = useState(true);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { layout, updateWidget, resetLayout } = useWidgetLayout('tasks');
 
   const handleDropTask = useCallback(
     async (taskId: string, newStatus: TaskStatus) => {
@@ -150,7 +169,7 @@ export const TaskBoard: React.FC = () => {
     <div className="flex flex-col h-full bg-vz-bg">
       {/* Top Bar */}
       <div
-        className="flex items-center justify-between px-5 py-3 glass-1"
+        className="flex items-center justify-between px-5 py-3 glass-1 flex-shrink-0"
         style={{
           borderBottom: '1px solid rgba(0,204,255,0.15)',
           boxShadow: '0 1px 8px rgba(0,204,255,0.05)',
@@ -212,6 +231,13 @@ export const TaskBoard: React.FC = () => {
               <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
             </svg>
           </button>
+          <button
+            onClick={resetLayout}
+            className="text-[10px] text-vz-muted hover:text-vz-cyan transition-colors px-2 py-2 rounded hover:bg-vz-surface/40"
+            title="Widget duzeni sifirla"
+          >
+            Duzeni Sifirla
+          </button>
         </div>
       </div>
 
@@ -223,7 +249,7 @@ export const TaskBoard: React.FC = () => {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden border-b border-vz-border"
+            className="overflow-hidden border-b border-vz-border flex-shrink-0"
           >
             <div className="px-5 py-4 glass-1">
               <NewTaskForm
@@ -235,69 +261,85 @@ export const TaskBoard: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Main Content: Columns + Activity Feed */}
-      <div className="flex flex-1 min-h-0">
-        {/* Kanban Columns */}
-        <div className="flex-1 flex flex-wrap lg:flex-nowrap gap-3 p-4 overflow-x-auto overflow-y-auto min-w-0 min-h-0 relative">
-          {tasks.length === 0 && !showNewTaskForm && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none"
-            >
-              {/* Geometric cyberpunk indicator */}
-              <div
-                className="w-16 h-16 rounded-xl mb-4 flex items-center justify-center opacity-40"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(0,204,255,0.1) 0%, rgba(139,92,246,0.1) 100%)',
-                  border: '1px solid rgba(0,204,255,0.15)',
-                }}
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00ccff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 11l3 3L22 4" />
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-              </div>
-              <p className="text-sm text-vz-muted mb-1 font-display">Gorev tahtaniz bos</p>
-              <p className="text-xs text-vz-muted/50 mb-4 text-center max-w-xs leading-relaxed">
-                Yapilacak isleri gorev olarak ekleyin ve agent'lara atayin. Gorevleri surukleyerek durumlarini degistirin.
-              </p>
-              <button
-                onClick={() => setShowNewTaskForm(true)}
-                className="btn-primary text-xs pointer-events-auto"
-              >
-                + Ilk Gorevi Olustur
-              </button>
-            </motion.div>
-          )}
-          {COLUMNS.map((col) => (
-            <TaskColumn
-              key={col.status}
-              status={col.status}
-              title={col.title}
-              emoji={col.emoji}
-              tasks={tasksByStatus[col.status]}
-              onDropTask={handleDropTask}
-              draggedTaskId={draggedTaskId}
-              onDragStart={handleDragStart}
-              onUpdateTask={handleUpdateTask}
-              onDeleteTask={handleDeleteTask}
-            />
-          ))}
-        </div>
+      {/* Widget canvas */}
+      <div ref={containerRef} className="flex-1 relative overflow-hidden min-h-0">
+        {/* Kanban Widget */}
+        {layout['kanban'] && (
+          <WidgetCard
+            id="kanban"
+            title="Gorev Tahtasi"
+            icon={<KanbanIcon />}
+            widgetState={layout['kanban']}
+            onUpdate={(patch) => updateWidget('kanban', patch)}
+            containerRef={containerRef}
+            minWidth={400}
+            minHeight={200}
+          >
+            {/* Content: kanban columns — drag-and-drop uses HTML DnD API (not framer drag) so no conflict */}
+            <div className="flex flex-wrap lg:flex-nowrap gap-3 p-4 h-full overflow-x-auto overflow-y-auto relative min-h-0">
+              {tasks.length === 0 && !showNewTaskForm && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none"
+                >
+                  <div
+                    className="w-16 h-16 rounded-xl mb-4 flex items-center justify-center opacity-40"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(0,204,255,0.1) 0%, rgba(139,92,246,0.1) 100%)',
+                      border: '1px solid rgba(0,204,255,0.15)',
+                    }}
+                  >
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00ccff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 11l3 3L22 4" />
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-vz-muted mb-1 font-display">Gorev tahtaniz bos</p>
+                  <p className="text-xs text-vz-muted/50 mb-4 text-center max-w-xs leading-relaxed">
+                    Yapilacak isleri gorev olarak ekleyin ve agent'lara atayin.
+                  </p>
+                  <button
+                    onClick={() => setShowNewTaskForm(true)}
+                    className="btn-primary text-xs pointer-events-auto"
+                  >
+                    + Ilk Gorevi Olustur
+                  </button>
+                </motion.div>
+              )}
+              {COLUMNS.map((col) => (
+                <TaskColumn
+                  key={col.status}
+                  status={col.status}
+                  title={col.title}
+                  emoji={col.emoji}
+                  tasks={tasksByStatus[col.status]}
+                  onDropTask={handleDropTask}
+                  draggedTaskId={draggedTaskId}
+                  onDragStart={handleDragStart}
+                  onUpdateTask={handleUpdateTask}
+                  onDeleteTask={handleDeleteTask}
+                />
+              ))}
+            </div>
+          </WidgetCard>
+        )}
 
-        {/* Activity Feed */}
+        {/* Activity Feed Widget */}
         <AnimatePresence>
-          {showActivityFeed && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 280, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="border-l border-vz-border overflow-hidden flex-shrink-0"
+          {showActivityFeed && layout['activity'] && (
+            <WidgetCard
+              id="activity"
+              title="Aktivite"
+              icon={<ActivityIcon />}
+              widgetState={layout['activity']}
+              onUpdate={(patch) => updateWidget('activity', patch)}
+              containerRef={containerRef}
+              minWidth={200}
+              minHeight={160}
             >
               <ActivityFeed />
-            </motion.div>
+            </WidgetCard>
           )}
         </AnimatePresence>
       </div>
