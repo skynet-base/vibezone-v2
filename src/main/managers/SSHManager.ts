@@ -10,6 +10,8 @@ import { ConfigManager } from './ConfigManager';
 type OutputCallback = (sessionId: string, data: string) => void;
 type StatusCallback = (session: Session) => void;
 
+const SSH_TIMEOUT = 30_000;
+
 interface RemoteSession {
   session: Session;
   client: Client;
@@ -112,6 +114,7 @@ export class SSHManager {
         host: host.hostname,
         port: host.port,
         username: host.username,
+        readyTimeout: SSH_TIMEOUT,
       };
 
       if (host.identityFile) {
@@ -121,8 +124,19 @@ export class SSHManager {
         }
       }
 
-      client.on('ready', () => resolve(client));
-      client.on('error', (err) => reject(err));
+      const timeout = setTimeout(() => {
+        client.end();
+        reject(new Error('SSH connection timeout'));
+      }, SSH_TIMEOUT);
+
+      client.on('ready', () => {
+        clearTimeout(timeout);
+        resolve(client);
+      });
+      client.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
       client.connect(connectConfig);
     });
   }
