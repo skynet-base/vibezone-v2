@@ -136,18 +136,18 @@ export const DashboardView: React.FC = () => {
 
       {/* Top row - 3 summary cards */}
       <motion.div
-        className="flex gap-4"
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
       >
         {/* Sprint Card */}
-        <motion.div className="flex-1 min-w-0" variants={fadeUp}>
+        <motion.div className="min-w-0" variants={fadeUp} whileHover={{ y: -2 }}>
           <SprintCard sprint={sprintState} />
         </motion.div>
 
         {/* Agent Card */}
-        <motion.div className="flex-1 min-w-0" variants={fadeUp}>
+        <motion.div className="min-w-0" variants={fadeUp} whileHover={{ y: -2 }}>
           <div
             className="glass-2 neon-border-green p-5 h-full relative overflow-hidden"
             style={{
@@ -205,7 +205,7 @@ export const DashboardView: React.FC = () => {
         </motion.div>
 
         {/* Tasks Card */}
-        <motion.div className="flex-1 min-w-0" variants={fadeUp}>
+        <motion.div className="min-w-0" variants={fadeUp} whileHover={{ y: -2 }}>
           <div
             className="glass-2 neon-border-purple p-5 h-full relative overflow-hidden"
             style={{

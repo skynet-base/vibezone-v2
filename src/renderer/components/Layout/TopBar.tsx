@@ -49,7 +49,7 @@ export const TopBar: React.FC = () => {
           VIBEZONE
         </span>
         <div className="h-4 w-px bg-vz-border" />
-        <div className="flex items-center gap-2 text-xs text-vz-text-secondary">
+        <div className="hidden md:flex items-center gap-2 text-xs text-vz-text-secondary">
           {terminalCount > 0 && (
             <span className="flex items-center gap-1" title="Terminal agent'lar">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -89,8 +89,8 @@ export const TopBar: React.FC = () => {
         {/* Sprint info */}
         {sprintState && (
           <>
-            <div className="h-4 w-px bg-vz-border" />
-            <div className="flex flex-col gap-0.5">
+            <div className="hidden xl:block h-4 w-px bg-vz-border" />
+            <div className="hidden xl:flex flex-col gap-0.5">
               <div className="flex items-center gap-1.5 text-xs">
                 <span className="text-vz-purple">Sprint #{sprintState.sprintNumber}</span>
                 <span className="text-vz-text-secondary">

@@ -118,21 +118,37 @@
   .neon-border-cyan {
     border: 1px solid rgba(0, 204, 255, 0.25);
     box-shadow: var(--neon-glow-cyan);
+    transition: box-shadow 0.3s ease;
+  }
+  .neon-border-cyan:hover {
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), 0 0 40px rgba(0, 240, 255, 0.3), inset 0 0 12px rgba(0, 240, 255, 0.2);
   }
 
   .neon-border-green {
     border: 1px solid rgba(0, 255, 136, 0.25);
     box-shadow: var(--neon-glow-green);
+    transition: box-shadow 0.3s ease;
+  }
+  .neon-border-green:hover {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.6), 0 0 40px rgba(0, 255, 136, 0.3), inset 0 0 12px rgba(0, 255, 136, 0.2);
   }
 
   .neon-border-purple {
     border: 1px solid rgba(139, 92, 246, 0.25);
     box-shadow: var(--neon-glow-purple);
+    transition: box-shadow 0.3s ease;
+  }
+  .neon-border-purple:hover {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 40px rgba(139, 92, 246, 0.3), inset 0 0 12px rgba(139, 92, 246, 0.2);
   }
 
   .neon-border-pink {
     border: 1px solid rgba(255, 45, 120, 0.25);
     box-shadow: var(--neon-glow-pink);
+    transition: box-shadow 0.3s ease;
+  }
+  .neon-border-pink:hover {
+    box-shadow: 0 0 20px rgba(255, 0, 85, 0.6), 0 0 40px rgba(255, 0, 85, 0.3), inset 0 0 12px rgba(255, 0, 85, 0.2);
   }
 
   /* ─── Gradient text ─── */
@@ -210,8 +226,8 @@
   .modal-content {
     @apply glass-3 rounded-xl p-6;
     @apply shadow-2xl max-h-[80vh] overflow-y-auto;
-    min-width: 440px;
-    max-width: 560px;
+    min-width: min(440px, calc(100vw - 32px));
+    max-width: min(560px, calc(100vw - 32px));
     -webkit-app-region: no-drag;
     position: relative;
   }

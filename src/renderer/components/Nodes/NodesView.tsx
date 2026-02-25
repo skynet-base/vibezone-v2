@@ -443,12 +443,13 @@ export const NodesView: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="h-[420px] glass-2 rounded-2xl overflow-hidden"
+          className="h-[300px] sm:h-[350px] lg:h-[420px] glass-2 rounded-2xl overflow-hidden"
           style={{ border: '1px solid rgba(0,204,255,0.1)' }}
         >
           <Suspense fallback={
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-vz-muted text-xs font-display">3D Sahne yukleniyor...</span>
+            <div className="w-full h-full flex flex-col items-center justify-center bg-vz-bg/60">
+              <div className="w-8 h-8 border-2 border-vz-cyan/30 border-t-vz-cyan rounded-full animate-spin mb-3" />
+              <span className="text-vz-muted text-xs font-display">3D sahne hazirlaniyor...</span>
             </div>
           }>
             <Node3DScene onDeviceClick={(id) => setSelectedNode(id)} />
@@ -458,7 +459,7 @@ export const NodesView: React.FC = () => {
 
       {/* Node Cards Grid */}
       <motion.div
-        className="grid grid-cols-2 xl:grid-cols-4 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
@@ -497,7 +498,7 @@ export const NodesView: React.FC = () => {
             </div>
             Hizli Islemler
           </h3>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {[
               { label: 'VPS RAM', cmd: 'free -h', target: 'vps' as NodeId, color: '#00ff88' },
               { label: 'Chrome Temizle', cmd: 'bash /root/cleanup-chrome.sh', target: 'vps' as NodeId, color: '#f59e0b' },

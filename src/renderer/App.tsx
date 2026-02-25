@@ -1,4 +1,5 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { TopBar } from './components/Layout/TopBar';
 import { Sidebar } from './components/Layout/Sidebar';
 import { TerminalPanel } from './components/Terminal/TerminalPanel';
@@ -96,6 +97,22 @@ const App: React.FC = () => {
   const terminalOpen = useSessionStore((s) => s.terminalOpen);
   const terminalHeight = useSessionStore((s) => s.terminalHeight);
   const sidebarWidth = useSessionStore((s) => s.sidebarWidth);
+  const sidebarCollapsed = useSessionStore((s) => s.sidebarCollapsed);
+  const setSidebarCollapsed = useSessionStore((s) => s.setSidebarCollapsed);
+
+  // Auto-collapse sidebar on small windows
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 900) {
+        setSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // check on mount
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setSidebarCollapsed]);
+
+  const effectiveSidebarWidth = sidebarCollapsed ? 60 : sidebarWidth;
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-vz-bg">
@@ -107,12 +124,13 @@ const App: React.FC = () => {
 
         {/* The Bento Container */}
         <div className="w-full h-full grid gap-4" style={{
-          gridTemplateColumns: `${sidebarWidth}px 1fr`,
+          gridTemplateColumns: `${effectiveSidebarWidth}px 1fr`,
           gridTemplateRows: terminalOpen ? `1fr ${terminalHeight}px` : '1fr',
           gridTemplateAreas: terminalOpen ? `
             "sidebar main"
             "sidebar terminal"
-          ` : `"sidebar main"`
+          ` : `"sidebar main"`,
+          transition: 'grid-template-columns 0.3s ease',
         }}>
 
           {/* Bento Cell: Sidebar */}
@@ -135,13 +153,20 @@ const App: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveView(tab.id)}
-                    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-display transition-all duration-300 ${activeView === tab.id
+                    className={`relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-display transition-all duration-300 ${activeView === tab.id
                         ? 'bg-vz-cyan/10 text-vz-cyan neon-border-cyan'
                         : 'bg-vz-surface/50 text-vz-muted hover:text-vz-text hover:bg-vz-surface-2'
                       }`}
                   >
                     <TabIcon tabId={tab.id} active={activeView === tab.id} />
-                    <span>{tab.label}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    {activeView === tab.id && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute bottom-0 left-0 right-0 h-[2px]"
+                        style={{ background: 'linear-gradient(90deg, transparent, #00ccff, transparent)' }}
+                      />
+                    )}
                   </button>
                 ))}
                 <PanelInfoButton

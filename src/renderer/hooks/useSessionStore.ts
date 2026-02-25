@@ -21,9 +21,12 @@ interface SessionStore {
   terminalOpen: boolean;
   terminalHeight: number;
   sidebarWidth: number;
+  sidebarCollapsed: boolean;
   toggleTerminal: () => void;
   setTerminalHeight: (height: number) => void;
   setSidebarWidth: (width: number) => void;
+  toggleSidebar: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 
   // SSH Hosts
   sshHosts: SSHHost[];
@@ -107,9 +110,12 @@ export const useSessionStore = create<SessionStore>((set) => ({
   terminalOpen: false,
   terminalHeight: 350,
   sidebarWidth: 240,
+  sidebarCollapsed: false,
   toggleTerminal: () => set((state) => ({ terminalOpen: !state.terminalOpen })),
   setTerminalHeight: (height) => set({ terminalHeight: height }),
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
+  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
 
   // SSH Hosts
   sshHosts: [],

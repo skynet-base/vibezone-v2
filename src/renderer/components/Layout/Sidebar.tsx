@@ -29,6 +29,8 @@ export const Sidebar: React.FC = () => {
   const terminalOpen = useSessionStore((s) => s.terminalOpen);
   const sidebarWidth = useSessionStore((s) => s.sidebarWidth);
   const setSidebarWidth = useSessionStore((s) => s.setSidebarWidth);
+  const sidebarCollapsed = useSessionStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useSessionStore((s) => s.toggleSidebar);
   const { killSession, importTeam, quickCreateShell } = useIPC();
 
   const [sshExpanded, setSshExpanded] = useState(false);
@@ -164,6 +166,79 @@ export const Sidebar: React.FC = () => {
     );
   };
 
+  // Collapsed mode: show only icons
+  if (sidebarCollapsed) {
+    return (
+      <div className="h-full flex flex-col glass-card border-none items-center" style={{ width: 60 }}>
+        {/* Toggle button */}
+        <button
+          onClick={toggleSidebar}
+          className="w-full flex items-center justify-center py-3 text-vz-muted hover:text-vz-cyan transition-colors border-b border-vz-border/50"
+          title="Sidebar'i genislet"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+
+        {/* Add agent */}
+        <button
+          onClick={() => setCreateAgentModalOpen(true)}
+          className="mt-3 w-9 h-9 rounded-lg flex items-center justify-center text-vz-cyan hover:bg-vz-cyan/10 transition-colors"
+          style={{ border: '1px solid rgba(0,240,255,0.3)' }}
+          title="Agent Ekle"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+
+        {/* Terminal */}
+        <button
+          onClick={quickCreateShell}
+          className="mt-2 w-9 h-9 rounded-lg flex items-center justify-center text-vz-green/80 hover:bg-vz-green/10 transition-colors"
+          style={{ border: '1px solid rgba(0,255,136,0.2)' }}
+          title="Terminal Ac"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
+        </button>
+
+        {/* Session dots */}
+        <div className="flex-1 overflow-y-auto py-3 space-y-2 flex flex-col items-center">
+          {sessions.map((session) => {
+            const info = AGENT_INFO[session.agentType];
+            const agentColor = info?.color || '#5a5a78';
+            const isActive = activeSessionId === session.id;
+            return (
+              <button
+                key={session.id}
+                onClick={() => handleSelectSession(session.id)}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                  isActive ? 'ring-1 ring-offset-1 ring-offset-vz-bg' : 'opacity-60 hover:opacity-100'
+                }`}
+                style={{
+                  backgroundColor: `${agentColor}20`,
+                  borderColor: isActive ? agentColor : 'transparent',
+                  borderWidth: 1,
+                  boxShadow: isActive ? `0 0 0 2px ${agentColor}40` : undefined,
+                }}
+                title={session.name}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: agentColor }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col glass-card border-none mr-4" style={{ width: sidebarWidth }}>
       {/* Resize handle */}
@@ -172,20 +247,31 @@ export const Sidebar: React.FC = () => {
         style={{ zIndex: 20 }}
         onMouseDown={handleResizeStart}
       />
-      {/* Logo area */}
-      <div className="px-4 py-3 border-b border-vz-border/50 relative z-10">
-        <h1
-          className="font-display text-2xl font-bold tracking-widest text-vz-cyan"
-          style={{
-            textShadow: '0 0 20px rgba(0,240,255,0.6), 0 0 40px rgba(0,240,255,0.3)',
-            animation: 'float-gentle 4s ease-in-out infinite',
-          }}
+      {/* Logo area + collapse toggle */}
+      <div className="px-4 py-3 border-b border-vz-border/50 relative z-10 flex items-start justify-between">
+        <div>
+          <h1
+            className="font-display text-2xl font-bold tracking-widest text-vz-cyan"
+            style={{
+              textShadow: '0 0 20px rgba(0,240,255,0.6), 0 0 40px rgba(0,240,255,0.3)',
+              animation: 'float-gentle 4s ease-in-out infinite',
+            }}
+          >
+            VIBEZONE
+          </h1>
+          <p className="text-[10px] text-vz-muted mt-0.5 tracking-[0.2em] font-mono">
+            COMMAND CENTER
+          </p>
+        </div>
+        <button
+          onClick={toggleSidebar}
+          className="mt-1 p-1 rounded hover:bg-vz-surface/60 text-vz-muted hover:text-vz-cyan transition-colors"
+          title="Sidebar'i daralt"
         >
-          VIBEZONE
-        </h1>
-        <p className="text-[10px] text-vz-muted mt-0.5 tracking-[0.2em] font-mono">
-          COMMAND CENTER
-        </p>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
       </div>
 
       {/* New Agent button */}
