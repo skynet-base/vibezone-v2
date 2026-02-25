@@ -8,6 +8,7 @@ import { SettingsModal } from './components/Modals/SettingsModal';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { OnboardingTooltip } from './components/UI/OnboardingTooltip';
+import { PanelInfoButton } from './components/UI/PanelInfoButton';
 import { useIPC } from './hooks/useIPC';
 import { useSessionStore } from './hooks/useSessionStore';
 
@@ -143,6 +144,16 @@ const App: React.FC = () => {
                     <span>{tab.label}</span>
                   </button>
                 ))}
+                <PanelInfoButton
+                  title={TAB_CONFIG.find(t => t.id === activeView)?.label || ''}
+                  shortcut={`Ctrl+${TAB_CONFIG.findIndex(t => t.id === activeView) + 1}`}
+                  description={
+                    activeView === 'office' ? '3D agent sahnesini goruntuleyin' :
+                    activeView === 'tasks' ? 'Gorev panosu ve yapay zeka destekli gorev yonetimi' :
+                    activeView === 'dashboard' ? 'Sistem dashboardu ve performans metrikleri' :
+                    'Altyapi ve sunucu yonetimi'
+                  }
+                />
               </div>
             </OnboardingTooltip>
 
