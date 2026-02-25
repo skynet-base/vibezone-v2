@@ -71,6 +71,42 @@
   ::-webkit-scrollbar-corner {
     background: transparent;
   }
+
+  *:focus-visible {
+    outline: 2px solid rgba(0, 240, 255, 0.5);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  button:focus-visible, [role="button"]:focus-visible {
+    box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.4);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.2);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+  button:focus-visible, [role="button"]:focus-visible {
+    box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.4);
+  }
 }
 
 @layer components {
@@ -149,6 +185,15 @@
   }
   .neon-border-pink:hover {
     box-shadow: 0 0 20px rgba(255, 0, 85, 0.6), 0 0 40px rgba(255, 0, 85, 0.3), inset 0 0 12px rgba(255, 0, 85, 0.2);
+  }
+
+  .neon-border-amber {
+    border: 1px solid rgba(255, 184, 0, 0.3);
+    box-shadow: var(--neon-glow-amber);
+    transition: box-shadow 0.3s ease;
+  }
+  .neon-border-amber:hover {
+    box-shadow: 0 0 20px rgba(255,184,0,0.6), 0 0 40px rgba(255,184,0,0.3), inset 0 0 12px rgba(255,184,0,0.2);
   }
 
   /* ─── Gradient text ─── */
@@ -322,4 +367,12 @@ body::after {
 .xterm-viewport::-webkit-scrollbar-thumb {
   background: rgba(26, 26, 53, 0.6);
   border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
