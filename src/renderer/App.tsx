@@ -10,7 +10,10 @@ import { ToastContainer } from './components/Toast/ToastContainer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { OnboardingTooltip } from './components/UI/OnboardingTooltip';
 import { PanelInfoButton } from './components/UI/PanelInfoButton';
+import { ConfirmModal } from './components/UI/ConfirmModal';
+import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { useIPC } from './hooks/useIPC';
+import { useHotkeys } from './hooks/useHotkeys';
 import { useSessionStore } from './hooks/useSessionStore';
 
 // Lazy load heavy components
@@ -92,6 +95,7 @@ const TabIcon: React.FC<{ tabId: string; active: boolean }> = ({ tabId, active }
 
 const App: React.FC = () => {
   useIPC();
+  useHotkeys();
   const activeView = useSessionStore((s) => s.activeView);
   const setActiveView = useSessionStore((s) => s.setActiveView);
   const terminalOpen = useSessionStore((s) => s.terminalOpen);
@@ -99,6 +103,8 @@ const App: React.FC = () => {
   const sidebarWidth = useSessionStore((s) => s.sidebarWidth);
   const sidebarCollapsed = useSessionStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useSessionStore((s) => s.setSidebarCollapsed);
+  const confirmModal = useSessionStore((s) => s.confirmModal);
+  const hideConfirm = useSessionStore((s) => s.hideConfirm);
 
   // Auto-collapse sidebar on small windows
   useEffect(() => {
@@ -209,6 +215,21 @@ const App: React.FC = () => {
       <CreateAgentModal />
       <SSHHostModal />
       <SettingsModal />
+
+      {/* Confirm Modal (global — replaces all window.confirm calls) */}
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        onConfirm={() => hideConfirm(true)}
+        onCancel={() => hideConfirm(false)}
+      />
+
+      {/* Command Palette */}
+      <CommandPalette />
 
       {/* Toast notifications */}
       <ToastContainer />

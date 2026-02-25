@@ -8,6 +8,7 @@ export const SSHHostModal: React.FC = () => {
   const open = useSessionStore((s) => s.sshHostModalOpen);
   const setOpen = useSessionStore((s) => s.setSshHostModalOpen);
   const sshHosts = useSessionStore((s) => s.sshHosts);
+  const showConfirm = useSessionStore((s) => s.showConfirm);
   const { addSshHost, removeSshHost, testSshHost } = useIPC();
 
   const [showForm, setShowForm] = useState(false);
@@ -69,7 +70,14 @@ export const SSHHostModal: React.FC = () => {
   };
 
   const handleRemove = async (hostId: string) => {
-    if (!confirm('Remove this SSH host?')) return;
+    const host = sshHosts.find((h) => h.id === hostId);
+    const ok = await showConfirm({
+      title: 'SSH Host Kaldir',
+      message: `"${host?.name ?? hostId}" adli SSH host kaldirilacak. Bu islem geri alinamaz.`,
+      confirmText: 'Kaldir',
+      variant: 'danger',
+    });
+    if (!ok) return;
     await removeSshHost(hostId);
     if (testResult?.id === hostId) setTestResult(null);
   };

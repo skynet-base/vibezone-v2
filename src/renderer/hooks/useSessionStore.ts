@@ -80,6 +80,30 @@ interface SessionStore {
   setCreateAgentModalOpen: (open: boolean) => void;
   setSshHostModalOpen: (open: boolean) => void;
   setSettingsModalOpen: (open: boolean) => void;
+
+  // Command Palette
+  commandPaletteOpen: boolean;
+  toggleCommandPalette: () => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+
+  // Confirm Modal
+  confirmModal: {
+    open: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText: string;
+    variant: 'danger' | 'warning' | 'info';
+    resolve: ((value: boolean) => void) | null;
+  };
+  showConfirm: (opts: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+  }) => Promise<boolean>;
+  hideConfirm: (result: boolean) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -102,20 +126,33 @@ export const useSessionStore = create<SessionStore>((set) => ({
   setActiveSession: (sessionId) => set({ activeSessionId: sessionId }),
   setSessions: (sessions) => set({ sessions }),
 
-  // Active view
-  activeView: 'office',
-  setActiveView: (view) => set({ activeView: view }),
+  // Active view (persisted)
+  activeView: (localStorage.getItem('vz-activeView') as ActiveView) || 'office',
+  setActiveView: (view) => {
+    localStorage.setItem('vz-activeView', view);
+    set({ activeView: view });
+  },
 
-  // Terminal
+  // Terminal (sidebar persisted)
   terminalOpen: false,
   terminalHeight: 350,
-  sidebarWidth: 240,
-  sidebarCollapsed: false,
+  sidebarWidth: parseInt(localStorage.getItem('vz-sidebarWidth') || '240', 10),
+  sidebarCollapsed: localStorage.getItem('vz-sidebarCollapsed') === 'true',
   toggleTerminal: () => set((state) => ({ terminalOpen: !state.terminalOpen })),
   setTerminalHeight: (height) => set({ terminalHeight: height }),
-  setSidebarWidth: (width) => set({ sidebarWidth: width }),
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  setSidebarWidth: (width) => {
+    localStorage.setItem('vz-sidebarWidth', String(width));
+    set({ sidebarWidth: width });
+  },
+  toggleSidebar: () => set((state) => {
+    const next = !state.sidebarCollapsed;
+    localStorage.setItem('vz-sidebarCollapsed', String(next));
+    return { sidebarCollapsed: next };
+  }),
+  setSidebarCollapsed: (collapsed) => {
+    localStorage.setItem('vz-sidebarCollapsed', String(collapsed));
+    set({ sidebarCollapsed: collapsed });
+  },
 
   // SSH Hosts
   sshHosts: [],
@@ -194,4 +231,45 @@ export const useSessionStore = create<SessionStore>((set) => ({
   setCreateAgentModalOpen: (open) => set({ createAgentModalOpen: open }),
   setSshHostModalOpen: (open) => set({ sshHostModalOpen: open }),
   setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
+
+  // Command Palette
+  commandPaletteOpen: false,
+  toggleCommandPalette: () => set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+
+  // Confirm Modal
+  confirmModal: {
+    open: false,
+    title: '',
+    message: '',
+    confirmText: 'Onayla',
+    cancelText: 'Iptal',
+    variant: 'danger',
+    resolve: null,
+  },
+  showConfirm: (opts) =>
+    new Promise<boolean>((resolve) => {
+      set({
+        confirmModal: {
+          open: true,
+          title: opts.title,
+          message: opts.message,
+          confirmText: opts.confirmText ?? 'Onayla',
+          cancelText: opts.cancelText ?? 'Iptal',
+          variant: opts.variant ?? 'danger',
+          resolve,
+        },
+      });
+    }),
+  hideConfirm: (result) =>
+    set((state) => {
+      state.confirmModal.resolve?.(result);
+      return {
+        confirmModal: {
+          ...state.confirmModal,
+          open: false,
+          resolve: null,
+        },
+      };
+    }),
 }));

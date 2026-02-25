@@ -5,6 +5,7 @@ import { useIPC } from '../../hooks/useIPC';
 import type { SessionStatus } from '@shared/types';
 import { AGENT_INFO, AGENT_COLORS } from '@shared/types';
 
+
 const STATUS_COLORS: Record<SessionStatus, string> = {
   idle: '#00ff88',
   working: '#00ccff',
@@ -32,6 +33,7 @@ export const Sidebar: React.FC = () => {
   const sidebarCollapsed = useSessionStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useSessionStore((s) => s.toggleSidebar);
   const { killSession, importTeam, quickCreateShell } = useIPC();
+  const showConfirm = useSessionStore((s) => s.showConfirm);
 
   const [sshExpanded, setSshExpanded] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -101,11 +103,15 @@ export const Sidebar: React.FC = () => {
       >
         <button
           onClick={() => handleSelectSession(session.id)}
-          onContextMenu={(e) => {
+          onContextMenu={async (e) => {
             e.preventDefault();
-            if (confirm(`"${session.name}" sonlandirilsin mi?`)) {
-              killSession(session.id);
-            }
+            const ok = await showConfirm({
+              title: 'Oturumu Sonlandir',
+              message: `"${session.name}" adli oturum kapatilacak. Devam etmek istiyor musunuz?`,
+              confirmText: 'Sonlandir',
+              variant: 'danger',
+            });
+            if (ok) killSession(session.id);
           }}
           className={`w-full text-left px-3 py-2 rounded-lg mb-0.5 transition-all duration-150 group relative overflow-hidden ${isActive
               ? 'glass-1'

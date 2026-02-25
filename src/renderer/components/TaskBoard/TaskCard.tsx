@@ -40,6 +40,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({
   isDragging,
 }) => {
   const sessions = useSessionStore((s) => s.sessions);
+  const showConfirm = useSessionStore((s) => s.showConfirm);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDescription, setEditDescription] = useState(task.description);
@@ -90,18 +91,26 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({
     }
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`"${task.title}" gorevini silmek istediginize emin misiniz?`)) {
-      onDelete(task.id);
-    }
+    const ok = await showConfirm({
+      title: 'Gorevi Sil',
+      message: `"${task.title}" adli gorev kalici olarak silinecek.`,
+      confirmText: 'Sil',
+      variant: 'danger',
+    });
+    if (ok) onDelete(task.id);
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (confirm(`"${task.title}" gorevini silmek istediginize emin misiniz?`)) {
-      onDelete(task.id);
-    }
+    const ok = await showConfirm({
+      title: 'Gorevi Sil',
+      message: `"${task.title}" adli gorev kalici olarak silinecek.`,
+      confirmText: 'Sil',
+      variant: 'danger',
+    });
+    if (ok) onDelete(task.id);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
