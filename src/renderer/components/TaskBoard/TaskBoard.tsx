@@ -238,7 +238,7 @@ export const TaskBoard: React.FC = () => {
       {/* Main Content: Columns + Activity Feed */}
       <div className="flex flex-1 min-h-0">
         {/* Kanban Columns */}
-        <div className="flex-1 flex flex-wrap lg:flex-nowrap gap-3 p-4 overflow-x-auto min-w-0 relative">
+        <div className="flex-1 flex flex-wrap lg:flex-nowrap gap-3 p-4 overflow-x-auto overflow-y-auto min-w-0 min-h-0 relative">
           {tasks.length === 0 && !showNewTaskForm && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}

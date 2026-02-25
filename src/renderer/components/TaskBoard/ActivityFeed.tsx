@@ -68,9 +68,17 @@ function getActivityAccent(type: Activity['type']): string {
   }
 }
 
+const api = () => (window as any).electronAPI;
+
 export const ActivityFeed: React.FC = () => {
   const activities = useSessionStore((s) => s.activities);
+  const setActivities = useSessionStore((s) => s.setActivities);
   const [filter, setFilter] = useState<FilterType>('all');
+
+  const handleClear = async () => {
+    setActivities([]);
+    try { await api().activity.clear(); } catch { /* ignore */ }
+  };
 
   const filteredActivities = useMemo(() => {
     let filtered = activities;
@@ -91,9 +99,20 @@ export const ActivityFeed: React.FC = () => {
     <div className="flex flex-col h-full w-[280px] glass-1">
       {/* Header */}
       <div className="px-3 py-3 border-b border-vz-border/50">
-        <h3 className="text-xs font-display font-semibold text-vz-text uppercase tracking-wider mb-2">
-          Aktivite
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-display font-semibold text-vz-text uppercase tracking-wider">
+            Aktivite
+          </h3>
+          {activities.length > 0 && (
+            <button
+              onClick={handleClear}
+              className="text-[9px] px-2 py-0.5 rounded-md text-vz-muted hover:text-red-400 transition-colors"
+              style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              Temizle
+            </button>
+          )}
+        </div>
 
         {/* Filter Buttons - pill shaped */}
         <div className="flex gap-1">

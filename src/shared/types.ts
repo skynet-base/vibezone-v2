@@ -341,6 +341,7 @@ export const IPC = {
   // Activity
   ACTIVITY_GET_ALL: 'activity:get-all',
   ACTIVITY_PUSH: 'activity:push',
+  ACTIVITY_CLEAR: 'activity:clear',
 
   // Sprint
   SPRINT_GET: 'sprint:get',

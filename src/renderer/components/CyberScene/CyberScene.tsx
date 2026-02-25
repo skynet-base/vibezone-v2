@@ -1,6 +1,6 @@
 import React, { Suspense, useCallback, useState, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Text, OrbitControls, Environment } from '@react-three/drei';
+import { Text, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { Platform } from './Platform';
@@ -88,8 +88,6 @@ const SceneContent: React.FC = () => {
       <pointLight position={[5, 5, 5]} color="#00F0FF" intensity={0.4} distance={20} />
       <pointLight position={[-5, 3, -5]} color="#B200FF" intensity={0.3} distance={20} />
       <pointLight position={[0, 6, 0]} color="#ffffff" intensity={0.2} distance={15} />
-      <Environment preset="night" />
-
       {/* Fog */}
       <fog attach="fog" args={['#050508', 12, 28]} />
 

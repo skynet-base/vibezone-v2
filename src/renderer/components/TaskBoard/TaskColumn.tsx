@@ -74,7 +74,7 @@ export const TaskColumn: React.FC<TaskColumnProps> = ({
 
   return (
     <div
-      className={`flex flex-col flex-1 min-w-[220px] max-w-[360px] glass-2 rounded-xl transition-all duration-200 ${
+      className={`flex flex-col flex-1 min-w-[220px] max-w-[360px] min-h-0 overflow-hidden glass-2 rounded-xl transition-all duration-200 ${
         isDragOver ? 'brightness-110' : ''
       }`}
       style={

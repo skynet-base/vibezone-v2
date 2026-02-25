@@ -176,6 +176,10 @@ export class TaskManager {
 
   // ── Activity Log ───────────────────────────────────────────
 
+  clearActivities(): void {
+    this.store.set('activities', []);
+  }
+
   getAllActivities(): Activity[] {
     try {
       const activities = this.store.get('activities');

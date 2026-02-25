@@ -48,12 +48,10 @@ const MeshLines: React.FC<{ statuses: Map<NodeId, NodeStatus> }> = ({ statuses }
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
-              array={new Float32Array([
+              args={[new Float32Array([
                 conn.from[0], conn.from[1] + 0.5, conn.from[2],
                 conn.to[0], conn.to[1] + 0.5, conn.to[2],
-              ])}
-              count={2}
-              itemSize={3}
+              ]), 3]}
             />
           </bufferGeometry>
           <lineBasicMaterial

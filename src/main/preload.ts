@@ -35,6 +35,7 @@ const IPC = {
   TASK_DELETE: 'task:delete',
   ACTIVITY_GET_ALL: 'activity:get-all',
   ACTIVITY_PUSH: 'activity:push',
+  ACTIVITY_CLEAR: 'activity:clear',
   SPRINT_GET: 'sprint:get',
   SPRINT_UPDATE: 'sprint:update',
   TEAM_IMPORT: 'team:import-directory',
@@ -121,6 +122,7 @@ const api = {
   activity: {
     getAll: () => ipcRenderer.invoke(IPC.ACTIVITY_GET_ALL),
     push: (activity: any) => ipcRenderer.invoke(IPC.ACTIVITY_PUSH, activity),
+    clear: () => ipcRenderer.invoke(IPC.ACTIVITY_CLEAR),
   },
 
   // ---- Sprint ----

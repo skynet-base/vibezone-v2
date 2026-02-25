@@ -355,6 +355,11 @@ export function registerIPCHandlers(
     return taskManager.pushActivity(activity);
   });
 
+  ipcMain.handle(IPC.ACTIVITY_CLEAR, async () => {
+    taskManager.clearActivities();
+    return { success: true };
+  });
+
   // ---- Sprint handlers ----
 
   ipcMain.handle(IPC.SPRINT_GET, async () => {

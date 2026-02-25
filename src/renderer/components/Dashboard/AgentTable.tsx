@@ -123,7 +123,7 @@ export const AgentTable: React.FC = () => {
         Agent Tablosu
       </h3>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[380px]">
         <table className="w-full text-xs">
           <thead>
             <tr className="text-vz-text-secondary uppercase text-[10px] tracking-wider">
