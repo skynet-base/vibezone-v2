@@ -7,6 +7,7 @@ import { SSHHostModal } from './components/Modals/SSHHostModal';
 import { SettingsModal } from './components/Modals/SettingsModal';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { OnboardingTooltip } from './components/UI/OnboardingTooltip';
 import { useIPC } from './hooks/useIPC';
 import { useSessionStore } from './hooks/useSessionStore';
 
@@ -115,7 +116,9 @@ const App: React.FC = () => {
 
           {/* Bento Cell: Sidebar */}
           <div className="glass-2 rounded-2xl overflow-hidden flex" style={{ gridArea: 'sidebar' }}>
-            <Sidebar />
+            <OnboardingTooltip id="add-agent" message="Yeni bir AI asistan veya terminal baslatmak icin tiklayin" position="right" delay={1000}>
+              <Sidebar />
+            </OnboardingTooltip>
           </div>
 
           {/* Bento Cell: Main Content (Tabs + View) */}
@@ -125,21 +128,23 @@ const App: React.FC = () => {
             <div className="absolute inset-0 bg-mesh-glow opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-0"></div>
 
             {/* Tab bar */}
-            <div className="relative z-10 flex items-center gap-2 px-4 py-3 bg-vz-surface-2/40 backdrop-blur-md border-b border-vz-border/50">
-              {TAB_CONFIG.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveView(tab.id)}
-                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-display transition-all duration-300 ${activeView === tab.id
-                      ? 'bg-vz-cyan/10 text-vz-cyan neon-border-cyan'
-                      : 'bg-vz-surface/50 text-vz-muted hover:text-vz-text hover:bg-vz-surface-2'
-                    }`}
-                >
-                  <TabIcon tabId={tab.id} active={activeView === tab.id} />
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
+            <OnboardingTooltip id="tab-bar" message="Farkli gorunumler arasinda gecis yapin: Sahne, Gorevler, Dashboard, Altyapi" position="bottom" delay={3000}>
+              <div className="relative z-10 flex items-center gap-2 px-4 py-3 bg-vz-surface-2/40 backdrop-blur-md border-b border-vz-border/50">
+                {TAB_CONFIG.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveView(tab.id)}
+                    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-display transition-all duration-300 ${activeView === tab.id
+                        ? 'bg-vz-cyan/10 text-vz-cyan neon-border-cyan'
+                        : 'bg-vz-surface/50 text-vz-muted hover:text-vz-text hover:bg-vz-surface-2'
+                      }`}
+                  >
+                    <TabIcon tabId={tab.id} active={activeView === tab.id} />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </OnboardingTooltip>
 
             {/* Active view */}
             <div className="flex-1 relative z-10 overflow-hidden">
@@ -155,7 +160,9 @@ const App: React.FC = () => {
           {/* Bento Cell: Terminal */}
           {terminalOpen && (
           <div className="glass-2 rounded-2xl overflow-hidden shadow-glass-inner" style={{ gridArea: 'terminal' }}>
-            <TerminalPanel />
+            <OnboardingTooltip id="terminal" message="Terminal acmak icin Ctrl+Shift+T, kapamak icin Ctrl+` kullanin" position="top" delay={5000}>
+              <TerminalPanel />
+            </OnboardingTooltip>
           </div>
           )}
 
