@@ -6,11 +6,13 @@ interface WorkingEffectsProps {
   color: THREE.Color;
   active: boolean;
   baseY: number;
+  colorHex?: string;
 }
 
-const PARTICLE_COUNT = 20;
+const PARTICLE_COUNT = 50;
+const WHITE_COLOR = new THREE.Color('#ffffff');
 
-export const WorkingEffects: React.FC<WorkingEffectsProps> = ({ color, active, baseY }) => {
+export const WorkingEffects: React.FC<WorkingEffectsProps> = ({ color, active, baseY, colorHex = '#00F0FF' }) => {
   const pointsRef = useRef<THREE.Points>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const ring2Ref = useRef<THREE.Mesh>(null);
@@ -37,20 +39,34 @@ export const WorkingEffects: React.FC<WorkingEffectsProps> = ({ color, active, b
     return arr;
   }, []);
 
+  const particleColors = useMemo(() => {
+    const agentColor = new THREE.Color(colorHex);
+    const arr = new Float32Array(PARTICLE_COUNT * 3);
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const c = i % 2 === 0 ? agentColor : WHITE_COLOR;
+      arr[i * 3] = c.r;
+      arr[i * 3 + 1] = c.g;
+      arr[i * 3 + 2] = c.b;
+    }
+    return arr;
+  }, [colorHex]);
+
   useFrame((state) => {
     if (!active) return;
     const t = state.clock.elapsedTime;
 
-    // Animate particles rising (1.5x faster)
+    // Animate particles rising with spiral outward drift
     if (pointsRef.current) {
       const positions = pointsRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < PARTICLE_COUNT; i++) {
         const speed = (0.3 + (i % 3) * 0.15) * 1.5;
-        positions[i * 3 + 1] = ((t * speed + i * 0.5) % 1.2) * 0.8;
+        const yProgress = ((t * speed + i * 0.5) % 1.2) * 0.8;
+        positions[i * 3 + 1] = yProgress;
         const angle = t * 0.5 + (i / PARTICLE_COUNT) * Math.PI * 2;
-        const r = 0.15 + Math.sin(t * 2 + i) * 0.05;
-        positions[i * 3] = Math.cos(angle) * r;
-        positions[i * 3 + 2] = Math.sin(angle) * r;
+        const spiralOffset = yProgress * 0.08;
+        const r = 0.15 + Math.sin(t * 2 + i) * 0.05 + spiralOffset;
+        positions[i * 3] = Math.cos(angle + i * 0.3) * r;
+        positions[i * 3 + 2] = Math.sin(angle + i * 0.3) * r;
       }
       pointsRef.current.geometry.attributes.position.needsUpdate = true;
     }
@@ -92,9 +108,13 @@ export const WorkingEffects: React.FC<WorkingEffectsProps> = ({ color, active, b
             attach="attributes-size"
             args={[particleSizes, 1]}
           />
+          <bufferAttribute
+            attach="attributes-color"
+            args={[particleColors, 3]}
+          />
         </bufferGeometry>
         <pointsMaterial
-          color={color}
+          vertexColors
           size={0.05}
           transparent
           opacity={0.7}

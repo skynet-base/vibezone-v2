@@ -1,6 +1,6 @@
 import React, { Suspense, useCallback, useState, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Text, OrbitControls } from '@react-three/drei';
+import { Text, OrbitControls, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { Platform } from './Platform';
@@ -16,7 +16,7 @@ import { useAgentPositions } from './hooks/useAgentPositions';
 const SceneFallback: React.FC = () => (
   <mesh>
     <boxGeometry args={[0.5, 0.5, 0.5]} />
-    <meshBasicMaterial color="#00ccff" wireframe />
+    <meshBasicMaterial color="#00F0FF" wireframe />
   </mesh>
 );
 
@@ -43,8 +43,8 @@ const DemoOrb: React.FC = () => {
       <mesh ref={orbRef}>
         <icosahedronGeometry args={[0.6, 1]} />
         <meshStandardMaterial
-          color="#00ffff"
-          emissive="#00ffff"
+          color="#00F0FF"
+          emissive="#00F0FF"
           emissiveIntensity={0.4}
           metalness={0.8}
           roughness={0.2}
@@ -52,7 +52,7 @@ const DemoOrb: React.FC = () => {
       </mesh>
       <mesh ref={ringRef}>
         <torusGeometry args={[1.2, 0.02, 16, 64]} />
-        <meshBasicMaterial color="#00ffff" transparent opacity={0.3} />
+        <meshBasicMaterial color="#00F0FF" transparent opacity={0.3} />
       </mesh>
     </group>
   );
@@ -86,9 +86,10 @@ const SceneContent: React.FC = () => {
     <>
       {/* Lighting */}
       <ambientLight intensity={0.3} />
-      <pointLight position={[5, 5, 5]} color="#00ccff" intensity={0.4} distance={20} />
-      <pointLight position={[-5, 3, -5]} color="#8b5cf6" intensity={0.3} distance={20} />
+      <pointLight position={[5, 5, 5]} color="#00F0FF" intensity={0.4} distance={20} />
+      <pointLight position={[-5, 3, -5]} color="#B200FF" intensity={0.3} distance={20} />
       <pointLight position={[0, 6, 0]} color="#ffffff" intensity={0.2} distance={15} />
+      <Environment preset="night" />
 
       {/* Fog */}
       <fog attach="fog" args={['#050508', 12, 28]} />
@@ -112,7 +113,7 @@ const SceneContent: React.FC = () => {
             <Text
               position={[0, 1.8, 0]}
               fontSize={0.8}
-              color="#00ccff"
+              color="#00F0FF"
               anchorX="center"
               anchorY="middle"
             >

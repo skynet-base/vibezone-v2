@@ -150,7 +150,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Bento Cell: Main Content (Tabs + View) */}
-          <div className="glass-2 rounded-2xl flex flex-col overflow-hidden relative group" style={{ gridArea: 'main' }}>
+          <div className="glass-2 rounded-2xl flex flex-col overflow-hidden relative group hud-corners" style={{ gridArea: 'main' }}>
 
             {/* Mesh Glow overlay for active bento cell */}
             <div className="absolute inset-0 bg-mesh-glow opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-0"></div>

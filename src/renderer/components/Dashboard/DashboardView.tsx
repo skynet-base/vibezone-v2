@@ -6,6 +6,19 @@ import { AgentTable } from './AgentTable';
 import { staggerContainer, fadeUp } from '../../lib/animations';
 import type { SessionStatus, TaskStatus } from '@shared/types';
 
+const AnimatedNumber: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = '' }) => {
+  return (
+    <motion.span
+      key={value}
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+    >
+      {value}{suffix}
+    </motion.span>
+  );
+};
+
 const STATUS_DOT_COLORS: Record<SessionStatus, string> = {
   working: '#00ccff',
   idle: '#00ff88',
@@ -173,7 +186,7 @@ export const DashboardView: React.FC = () => {
                 className="ml-auto text-3xl font-bold text-vz-green font-display"
                 style={{ textShadow: '0 0 20px rgba(0,255,136,0.5)' }}
               >
-                {agentStats.total}
+                <AnimatedNumber value={agentStats.total} />
               </span>
             </div>
 
@@ -229,7 +242,7 @@ export const DashboardView: React.FC = () => {
                 className="ml-auto text-3xl font-bold text-vz-purple font-display"
                 style={{ textShadow: '0 0 20px rgba(139,92,246,0.5)' }}
               >
-                {tasks.length}
+                <AnimatedNumber value={tasks.length} />
               </span>
             </div>
 

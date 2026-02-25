@@ -57,7 +57,7 @@ const MeshLines: React.FC<{ statuses: Map<NodeId, NodeStatus> }> = ({ statuses }
             />
           </bufferGeometry>
           <lineBasicMaterial
-            color={conn.active ? '#00ccff' : '#1a1a2e'}
+            color={conn.active ? '#00F0FF' : '#1a1a2e'}
             transparent
             opacity={conn.active ? 0.4 : 0.1}
             linewidth={1}
@@ -98,7 +98,7 @@ const SceneContent: React.FC<{
       {/* Lighting */}
       <ambientLight intensity={0.15} />
       <directionalLight position={[5, 8, 5]} intensity={0.4} color="#c0c0ff" />
-      <pointLight position={[0, 5, 0]} intensity={0.3} color="#00ccff" distance={15} />
+      <pointLight position={[0, 5, 0]} intensity={0.3} color="#00F0FF" distance={15} />
 
       {/* Fog */}
       <fog attach="fog" args={['#050508', 6, 18]} />
@@ -140,7 +140,7 @@ const SceneContent: React.FC<{
           scale={[12, 4, 8]}
           size={1.5}
           speed={0.3}
-          color="#00ccff"
+          color="#00F0FF"
           opacity={0.3}
         />
       )}

@@ -7,6 +7,7 @@ import {
   Noise,
 } from '@react-three/postprocessing';
 import { BlendFunction, Resolution } from 'postprocessing';
+import * as THREE from 'three';
 import { Vector2 } from 'three';
 
 interface PostEffectsProps {
@@ -15,12 +16,14 @@ interface PostEffectsProps {
 
 const MediumEffects: React.FC = () => (
   <EffectComposer>
-    <Bloom
-      luminanceThreshold={0.6}
-      luminanceSmoothing={0.4}
-      intensity={0.8}
-      mipmapBlur
+    <Bloom luminanceThreshold={0.5} intensity={0.8} mipmapBlur />
+    <ChromaticAberration
+      offset={new THREE.Vector2(0.0003, 0.0003)}
+      blendFunction={BlendFunction.NORMAL}
+      radialModulation={false}
+      modulationOffset={0}
     />
+    <Vignette offset={0.2} darkness={0.6} />
   </EffectComposer>
 );
 

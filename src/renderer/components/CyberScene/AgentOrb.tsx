@@ -144,6 +144,40 @@ export const AgentOrb: React.FC<AgentOrbProps> = ({
         />
       </mesh>
 
+      {/* Fresnel rim glow */}
+      <mesh>
+        <icosahedronGeometry args={[0.38, 3]} />
+        <shaderMaterial
+          vertexShader={`
+            varying vec3 vNormal;
+            varying vec3 vViewDir;
+            void main() {
+              vNormal = normalize(normalMatrix * normal);
+              vec4 worldPos = modelViewMatrix * vec4(position, 1.0);
+              vViewDir = normalize(-worldPos.xyz);
+              gl_Position = projectionMatrix * worldPos;
+            }
+          `}
+          fragmentShader={`
+            uniform vec3 uColor;
+            uniform float uIntensity;
+            varying vec3 vNormal;
+            varying vec3 vViewDir;
+            void main() {
+              float fresnel = pow(1.0 - abs(dot(vNormal, vViewDir)), 3.0);
+              gl_FragColor = vec4(uColor, fresnel * uIntensity);
+            }
+          `}
+          uniforms={{
+            uColor: { value: new THREE.Color(agentInfo.color) },
+            uIntensity: { value: hovered ? 1.4 : 0.9 },
+          }}
+          transparent={true}
+          depthWrite={false}
+          side={THREE.BackSide}
+        />
+      </mesh>
+
       {/* Glow shell */}
       <mesh>
         <icosahedronGeometry args={[0.34, 3]} />

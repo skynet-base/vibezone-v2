@@ -271,6 +271,107 @@
     animation: border-rotate 6s linear infinite;
     pointer-events: none;
   }
+
+  /* ─── Scanline Overlay ─── */
+  .scanline-overlay {
+    position: relative;
+    overflow: hidden;
+  }
+  .scanline-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ─── HUD Corner Brackets ─── */
+  .hud-corners {
+    position: relative;
+  }
+  .hud-corners::before,
+  .hud-corners::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hud-corners::before {
+    top: 6px;
+    left: 6px;
+    border-top: 1.5px solid rgba(0, 240, 255, 0.6);
+    border-left: 1.5px solid rgba(0, 240, 255, 0.6);
+  }
+  .hud-corners::after {
+    bottom: 6px;
+    right: 6px;
+    border-bottom: 1.5px solid rgba(0, 240, 255, 0.6);
+    border-right: 1.5px solid rgba(0, 240, 255, 0.6);
+  }
+
+  /* ─── Prismatic Shimmer for Glass Cards ─── */
+  .glass-prism {
+    position: relative;
+    overflow: hidden;
+  }
+  .glass-prism::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(0, 240, 255, 0.04) 50%,
+      rgba(178, 0, 255, 0.03) 60%,
+      transparent 70%
+    );
+    animation: prismatic-sweep 8s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ─── Glitch Text Effect ─── */
+  .glitch {
+    position: relative;
+  }
+  .glitch::before,
+  .glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+  .glitch:hover::before {
+    opacity: 0.8;
+    animation: glitch-shift-1 0.3s steps(2) forwards;
+    color: #00F0FF;
+    clip-path: polygon(0 20%, 100% 20%, 100% 40%, 0 40%);
+  }
+  .glitch:hover::after {
+    opacity: 0.8;
+    animation: glitch-shift-2 0.3s steps(2) forwards;
+    color: #B200FF;
+    clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+  }
+
+  /* ─── Ambient Sidebar Glow ─── */
+  .sidebar-glow {
+    --glow-color: rgba(0, 240, 255, 0.15);
+    box-shadow: inset -1px 0 0 var(--glow-color), 4px 0 20px var(--glow-color);
+    transition: --glow-color 0.5s ease, box-shadow 0.5s ease;
+  }
 }
 
 @layer utilities {
@@ -307,6 +408,24 @@
 @keyframes float-gentle {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+
+@keyframes prismatic-sweep {
+  0% { left: -100%; }
+  40% { left: 150%; }
+  100% { left: 150%; }
+}
+
+@keyframes glitch-shift-1 {
+  0%   { transform: translate(-2px, 0); opacity: 0.8; }
+  50%  { transform: translate(2px, 0); opacity: 0.6; }
+  100% { transform: translate(0, 0); opacity: 0; }
+}
+
+@keyframes glitch-shift-2 {
+  0%   { transform: translate(2px, 1px); opacity: 0.8; }
+  50%  { transform: translate(-2px, -1px); opacity: 0.6; }
+  100% { transform: translate(0, 0); opacity: 0; }
 }
 
 /* CSS @property for animated gradient border */

@@ -43,7 +43,8 @@ export const TopBar: React.FC = () => {
       {/* Left: Logo + stats */}
       <div className="flex items-center gap-3 no-drag">
         <span
-          className="font-display font-bold text-sm tracking-wider text-vz-cyan"
+          className="font-display font-bold text-sm tracking-wider text-vz-cyan glitch"
+          data-text="VIBEZONE"
           style={{ textShadow: '0 0 20px rgba(0,204,255,0.5)' }}
         >
           VIBEZONE
