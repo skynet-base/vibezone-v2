@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import os from 'os';
+import path from 'path';
 import fs from 'fs';
 import { Session, SessionConfig, SessionStatus, AgentType, getAgentCategory } from '../../shared/types';
 
@@ -29,6 +30,21 @@ const TERMINAL_COMMANDS: Partial<Record<AgentType, string>> = {
 const TERMINAL_DEFAULT_ARGS: Partial<Record<AgentType, string[]>> = {
   shell: isWindows ? ['-NoLogo'] : [],
 };
+
+// On Windows, npm global CLI tools install as .cmd wrappers.
+// node-pty cannot spawn .cmd files directly — wrap via cmd.exe /c <full-path>.
+function resolveWindowsAgent(cmd: string, args: string[]): { cmd: string; args: string[] } {
+  if (!isWindows) return { cmd, args };
+  const npmGlobalBin = path.join(os.homedir(), 'AppData', 'Roaming', 'npm');
+  const cmdFilePath = path.join(npmGlobalBin, cmd + '.cmd');
+  if (fs.existsSync(cmdFilePath)) {
+    return {
+      cmd: process.env.COMSPEC || 'cmd.exe',
+      args: ['/c', cmdFilePath, ...args],
+    };
+  }
+  return { cmd, args };
+}
 
 // Validate that a string does not contain shell metacharacters
 function sanitizeShellArg(arg: string): string {
@@ -63,6 +79,11 @@ function getAgentCommandAndArgs(
   if (flags) {
     const flagArgs = flags.trim().split(/\s+/).map(sanitizeShellArg).filter(Boolean);
     args.push(...flagArgs);
+  }
+
+  // On Windows, resolve npm CLI tools to their .cmd wrapper via cmd.exe
+  if (isWindows && agentType !== 'shell' && agentType !== 'custom') {
+    return resolveWindowsAgent(cmd, args);
   }
 
   return { cmd, args };

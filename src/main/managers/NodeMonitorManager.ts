@@ -97,20 +97,12 @@ export class NodeMonitorManager {
       const localId = this.getLocalNodeId();
 
       if (nodeId === localId) {
-        const result = await execFileAsync('bash', ['-c', command], {
-          timeout: SSH_TIMEOUT,
-          maxBuffer: 1024 * 1024,
-        });
+        const result = await this.runLocalCommand(command, SSH_TIMEOUT, 1024 * 1024);
         output = result.stdout + (result.stderr ? '\n' + result.stderr : '');
       } else {
         const node = NODE_CONFIG.find(n => n.id === nodeId);
-        if (!node?.sshAlias) throw new Error(`No SSH alias for node: ${nodeId}`);
-        const result = await execFileAsync('ssh', [
-          '-o', 'ConnectTimeout=8',
-          '-o', 'BatchMode=yes',
-          node.sshAlias,
-          command,
-        ], { timeout: SSH_TIMEOUT, maxBuffer: 1024 * 1024 });
+        if (!node) throw new Error(`Unknown node: ${nodeId}`);
+        const result = await this.runSSHCommand(node, command, SSH_TIMEOUT, 1024 * 1024);
         output = result.stdout + (result.stderr ? '\n' + result.stderr : '');
       }
 
@@ -159,39 +151,23 @@ export class NodeMonitorManager {
 
   // ---- Remote Windows via SSH ----
   private async pollSSHWindows(node: NodeInfo): Promise<void> {
-    if (!node.sshAlias) return;
     try {
       this.updateConnection(node.id, 'connecting');
 
-      const result = await execFileAsync('ssh', [
-        '-o', 'ConnectTimeout=8',
-        '-o', 'BatchMode=yes',
-        node.sshAlias,
-        'wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value 2>nul & echo ---UPTIME--- & wmic OS get LastBootUpTime /Value 2>nul',
-      ], { timeout: SSH_TIMEOUT, maxBuffer: 512 * 1024 });
-
-      const out = result.stdout;
-      const totalKB = parseInt(out.match(/TotalVisibleMemorySize=(\d+)/)?.[1] || '0');
-      const freeKB = parseInt(out.match(/FreePhysicalMemory=(\d+)/)?.[1] || '0');
-      const totalMB = Math.round(totalKB / 1024);
-      const usedMB = Math.round((totalKB - freeKB) / 1024);
-
-      const bootMatch = out.match(/LastBootUpTime=(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/);
-      let uptime = '';
-      if (bootMatch) {
-        const bootDate = new Date(`${bootMatch[1]}-${bootMatch[2]}-${bootMatch[3]}T${bootMatch[4]}:${bootMatch[5]}:00`);
-        const diffMs = Date.now() - bootDate.getTime();
-        const days = Math.floor(diffMs / 86400000);
-        const hours = Math.floor((diffMs % 86400000) / 3600000);
-        uptime = `${days}g ${hours}sa`;
-      }
+      const result = await this.runSSHCommand(
+        node,
+        `powershell -NoProfile -NonInteractive -EncodedCommand ${this.encodePowerShell(this.getWindowsStatusScript())}`,
+        SSH_TIMEOUT,
+        512 * 1024,
+      );
+      const parsed = this.parseWindowsStatusOutput(result.stdout);
 
       this.statuses.set(node.id, {
         nodeId: node.id,
         connection: 'online',
         lastChecked: Date.now(),
-        ram: { totalMB, usedMB },
-        uptime,
+        ram: { totalMB: parsed.totalMB, usedMB: parsed.usedMB },
+        uptime: parsed.uptime,
         services: [
           { name: 'SSH Server', status: 'running' },
         ],
@@ -208,16 +184,15 @@ export class NodeMonitorManager {
 
   // ---- Remote Linux via SSH ----
   private async pollSSHLinux(node: NodeInfo): Promise<void> {
-    if (!node.sshAlias) return;
     try {
       this.updateConnection(node.id, 'connecting');
 
-      const result = await execFileAsync('ssh', [
-        '-o', 'ConnectTimeout=8',
-        '-o', 'BatchMode=yes',
-        node.sshAlias,
+      const result = await this.runSSHCommand(
+        node,
         'bash /root/orchestration-status.sh 2>/dev/null || echo \'{"error":"script_missing"}\'',
-      ], { timeout: SSH_TIMEOUT, maxBuffer: 512 * 1024 });
+        SSH_TIMEOUT,
+        512 * 1024,
+      );
 
       const data = JSON.parse(result.stdout.trim());
 
@@ -276,7 +251,8 @@ export class NodeMonitorManager {
 
   // ---- GG Agent Status (all nodes) ----
   private async pollGGAgentStatusAll(): Promise<void> {
-    const ggToolsCmd = 'node $([ -f $HOME/.claude/good-guys/bin/gg-tools.cjs ] && echo $HOME/.claude/good-guys/bin/gg-tools.cjs || echo $HOME/.openclaw/good-guys/bin/gg-tools.cjs)';
+    const ggLinuxCmd = this.getLinuxGGIdentityCommand();
+    const ggWindowsEncoded = this.encodePowerShell(this.getWindowsGGIdentityScript());
     const localId = this.getLocalNodeId();
 
     for (const node of NODE_CONFIG) {
@@ -287,22 +263,43 @@ export class NodeMonitorManager {
       }
 
       try {
-        let result;
+        let result: { stdout: string; stderr: string };
+        const isLocal = node.id === localId;
+        const isWindowsNode = isLocal ? process.platform === 'win32' : node.monitorType === 'ssh-windows';
+
         if (node.id === localId) {
-          result = await execFileAsync('bash', ['-c', `${ggToolsCmd} pc-identity`], {
-            timeout: 5000,
-            maxBuffer: 64 * 1024,
-          });
+          if (isWindowsNode) {
+            result = await execFileAsync('powershell', [
+              '-NoProfile',
+              '-NonInteractive',
+              '-EncodedCommand',
+              ggWindowsEncoded,
+            ], { timeout: 5000, maxBuffer: 64 * 1024 });
+          } else {
+            result = await execFileAsync('bash', ['-lc', ggLinuxCmd], {
+              timeout: 5000,
+              maxBuffer: 64 * 1024,
+            });
+          }
         } else {
-          if (!node.sshAlias) continue;
-          result = await execFileAsync('ssh', [
-            '-o', 'ConnectTimeout=5',
-            '-o', 'BatchMode=yes',
-            node.sshAlias,
-            `${ggToolsCmd} pc-identity 2>/dev/null || echo '{}'`,
-          ], { timeout: 8000, maxBuffer: 64 * 1024 });
+          if (isWindowsNode) {
+            result = await this.runSSHCommand(
+              node,
+              `powershell -NoProfile -NonInteractive -EncodedCommand ${ggWindowsEncoded}`,
+              8000,
+              64 * 1024,
+            );
+          } else {
+            result = await this.runSSHCommand(
+              node,
+              ggLinuxCmd,
+              8000,
+              64 * 1024,
+            );
+          }
         }
-        const data = JSON.parse(result.stdout.trim());
+
+        const data = this.tryParseJson(result.stdout);
         if (data.pc_id || node.id === localId) {
           status.gg_agent_status = {
             pc_id: data.pc_id || node.id,
@@ -316,6 +313,119 @@ export class NodeMonitorManager {
       } catch {
         status.gg_agent_status = undefined;
       }
+    }
+  }
+
+  private resolveSshTarget(node: NodeInfo): string | null {
+    if (node.sshAlias) return node.sshAlias;
+    const host = node.tailscaleIp || (node.ip && node.ip !== 'localhost' ? node.ip : node.hostname);
+    if (!host) return null;
+    return node.user ? `${node.user}@${host}` : host;
+  }
+
+  private async runSSHCommand(
+    node: NodeInfo,
+    command: string,
+    timeout: number,
+    maxBuffer: number,
+  ): Promise<{ stdout: string; stderr: string }> {
+    const target = this.resolveSshTarget(node);
+    if (!target) throw new Error(`No SSH target for node: ${node.id}`);
+    return execFileAsync('ssh', [
+      '-o', 'ConnectTimeout=8',
+      '-o', 'BatchMode=yes',
+      target,
+      command,
+    ], { timeout, maxBuffer });
+  }
+
+  private async runLocalCommand(
+    command: string,
+    timeout: number,
+    maxBuffer: number,
+  ): Promise<{ stdout: string; stderr: string }> {
+    if (process.platform === 'win32') {
+      return execFileAsync('powershell', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        this.encodePowerShell(command),
+      ], { timeout, maxBuffer });
+    }
+    return execFileAsync('bash', ['-lc', command], { timeout, maxBuffer });
+  }
+
+  private encodePowerShell(script: string): string {
+    return Buffer.from(script, 'utf16le').toString('base64');
+  }
+
+  private getWindowsStatusScript(): string {
+    return [
+      '$os = Get-CimInstance Win32_OperatingSystem',
+      '$total = [int][math]::Round($os.TotalVisibleMemorySize / 1024)',
+      '$free = [int][math]::Round($os.FreePhysicalMemory / 1024)',
+      '$used = $total - $free',
+      '$boot = $os.LastBootUpTime',
+      'if (-not ($boot -is [datetime])) { $boot = [System.Management.ManagementDateTimeConverter]::ToDateTime($boot) }',
+      '$uptime = New-TimeSpan -Start $boot -End (Get-Date)',
+      'Write-Output ("TOTAL_MB={0}" -f $total)',
+      'Write-Output ("USED_MB={0}" -f $used)',
+      'Write-Output ("UPTIME_DAYS={0}" -f [int]$uptime.TotalDays)',
+      'Write-Output ("UPTIME_HOURS={0}" -f $uptime.Hours)',
+    ].join('; ');
+  }
+
+  private parseWindowsStatusOutput(output: string): { totalMB: number; usedMB: number; uptime: string } {
+    const totalMB = parseInt(output.match(/TOTAL_MB=(\d+)/)?.[1] || '0', 10);
+    const usedMB = parseInt(output.match(/USED_MB=(\d+)/)?.[1] || '0', 10);
+    const days = parseInt(output.match(/UPTIME_DAYS=(\d+)/)?.[1] || '0', 10);
+    const hours = parseInt(output.match(/UPTIME_HOURS=(\d+)/)?.[1] || '0', 10);
+    return {
+      totalMB,
+      usedMB,
+      uptime: `${days}g ${hours}sa`,
+    };
+  }
+
+  private getLinuxGGIdentityCommand(): string {
+    return [
+      'GG_TOOLS=""',
+      'if [ -f "$HOME/.claude/good-guys/bin/gg-tools.cjs" ]; then GG_TOOLS="$HOME/.claude/good-guys/bin/gg-tools.cjs"; fi',
+      'if [ -z "$GG_TOOLS" ] && [ -f "$HOME/.claude/bin/gg-tools.cjs" ]; then GG_TOOLS="$HOME/.claude/bin/gg-tools.cjs"; fi',
+      'if [ -z "$GG_TOOLS" ] && [ -f "$HOME/.openclaw/good-guys/bin/gg-tools.cjs" ]; then GG_TOOLS="$HOME/.openclaw/good-guys/bin/gg-tools.cjs"; fi',
+      'if [ -z "$GG_TOOLS" ]; then echo "{}"; else node "$GG_TOOLS" pc-identity 2>/dev/null || echo "{}"; fi',
+    ].join('; ');
+  }
+
+  private getWindowsGGIdentityScript(): string {
+    return [
+      '$paths = @(',
+      '  "$HOME\\.claude\\good-guys\\bin\\gg-tools.cjs",',
+      '  "$HOME\\.claude\\bin\\gg-tools.cjs",',
+      '  "$HOME\\.openclaw\\good-guys\\bin\\gg-tools.cjs"',
+      ')',
+      '$tool = $paths | Where-Object { Test-Path $_ } | Select-Object -First 1',
+      'if (-not $tool) { Write-Output "{}"; exit 0 }',
+      'node $tool pc-identity 2>$null',
+    ].join('; ');
+  }
+
+  private tryParseJson(raw: string): any {
+    const text = raw.trim();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        try {
+          return JSON.parse(text.slice(start, end + 1));
+        } catch {
+          return {};
+        }
+      }
+      return {};
     }
   }
 

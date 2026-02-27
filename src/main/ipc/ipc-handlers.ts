@@ -10,6 +10,7 @@ import { ConfigManager } from '../managers/ConfigManager';
 import { TaskManager } from '../managers/TaskManager';
 import { TeamImporter } from '../managers/TeamImporter';
 import { NodeMonitorManager } from '../managers/NodeMonitorManager';
+import { ProcessWatcherManager } from '../managers/ProcessWatcherManager';
 
 // Input validation helpers
 function validateString(value: unknown, name: string, maxLength = 1024): string {
@@ -49,6 +50,7 @@ export function registerIPCHandlers(
   taskManager: TaskManager,
   teamImporter: TeamImporter,
   nodeMonitor: NodeMonitorManager,
+  processWatcher: ProcessWatcherManager,
 ): void {
   const send = (channel: string, ...args: any[]) => {
     if (!win.isDestroyed()) {
@@ -463,6 +465,11 @@ export function registerIPCHandlers(
 
   nodeMonitor.setStatusHandler((statuses) => {
     send(IPC.NODE_STATUS_UPDATE, statuses);
+  });
+
+  // Forward process watcher updates to renderer
+  processWatcher.setUpdateHandler((nodeId, agents) => {
+    send(IPC.AGENT_DETECTED_UPDATE, { nodeId, agents });
   });
 
   // ---- System handlers ----

@@ -1,9 +1,10 @@
-import React, { useRef, useMemo, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text, Float, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { NodeId, NodeConnectionStatus } from '@shared/types';
 import { NodeAgentActivity } from './NodeAgentActivity';
+import { ErrorBoundary3D } from '../UI/ErrorBoundary3D';
 
 // GLTF model paths — auto-detect: if file exists, use it; otherwise procedural
 const GLTF_PATHS: Record<string, string> = {
@@ -12,19 +13,10 @@ const GLTF_PATHS: Record<string, string> = {
   server: '/models/server.glb',
 };
 
-// Hook to check if a GLB model file exists
-// Note: In Electron, fetch uses file:// protocol for local assets.
-// Models should be placed in the public/models/ directory during development.
+// Removed unreliable fetch check for file protocol in Electron. 
+// Defaulting to procedural models for stability until a local asset loader is properly configured.
 function useModelAvailable(deviceType: string): boolean {
-  const [available, setAvailable] = useState(false);
-  useEffect(() => {
-    const path = GLTF_PATHS[deviceType];
-    if (!path) return;
-    fetch(path, { method: 'HEAD' })
-      .then((res) => setAvailable(res.ok))
-      .catch(() => setAvailable(false));
-  }, [deviceType]);
-  return available;
+  return false;
 }
 
 // GLTF model wrapper
@@ -66,13 +58,13 @@ interface DeviceModelProps {
 
 // Tower PC (PC1, PC2)
 const TowerCase: React.FC<{ color: string; online: boolean }> = ({ color, online }) => {
-  const groupRef = useRef<THREE.Group>(null);
   const glowRef = useRef<THREE.PointLight>(null);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (glowRef.current) {
+      const t = clock.getElapsedTime();
       glowRef.current.intensity = online
-        ? 1.5 + Math.sin(Date.now() * 0.003) * 0.5
+        ? 1.5 + Math.sin(t * 3) * 0.5
         : 0.2;
     }
   });
@@ -92,7 +84,7 @@ const TowerCase: React.FC<{ color: string; online: boolean }> = ({ color, online
   }), [color, online]);
 
   return (
-    <group ref={groupRef}>
+    <group>
       {/* Main case body */}
       <mesh material={mat} castShadow>
         <boxGeometry args={[0.8, 1.4, 0.6]} />
@@ -142,13 +134,13 @@ const TowerCase: React.FC<{ color: string; online: boolean }> = ({ color, online
 
 // Laptop (PC4)
 const LaptopModel: React.FC<{ color: string; online: boolean }> = ({ color, online }) => {
-  const screenRef = useRef<THREE.Group>(null);
   const glowRef = useRef<THREE.PointLight>(null);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (glowRef.current) {
+      const t = clock.getElapsedTime();
       glowRef.current.intensity = online
-        ? 1.2 + Math.sin(Date.now() * 0.003) * 0.3
+        ? 1.2 + Math.sin(t * 3) * 0.3
         : 0.1;
     }
   });
@@ -179,7 +171,7 @@ const LaptopModel: React.FC<{ color: string; online: boolean }> = ({ color, onli
       </mesh>
 
       {/* Screen (tilted) */}
-      <group ref={screenRef} position={[0, 0.45, -0.38]} rotation={[-0.3, 0, 0]}>
+      <group position={[0, 0.45, -0.38]} rotation={[-0.3, 0, 0]}>
         <mesh material={bodyMat}>
           <boxGeometry args={[1.15, 0.75, 0.03]} />
         </mesh>
@@ -216,10 +208,11 @@ const ServerRack: React.FC<{ color: string; online: boolean }> = ({ color, onlin
   const ledsRef = useRef<THREE.Group>(null);
   const glowRef = useRef<THREE.PointLight>(null);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
     if (glowRef.current) {
       glowRef.current.intensity = online
-        ? 1.0 + Math.sin(Date.now() * 0.005) * 0.4
+        ? 1.0 + Math.sin(t * 5) * 0.4
         : 0.1;
     }
     // Blink drive LEDs
@@ -227,7 +220,7 @@ const ServerRack: React.FC<{ color: string; online: boolean }> = ({ color, onlin
       ledsRef.current.children.forEach((led, i) => {
         const mesh = led as THREE.Mesh;
         const mat = mesh.material as THREE.MeshStandardMaterial;
-        const blink = Math.sin(Date.now() * 0.01 + i * 1.5) > 0.3;
+        const blink = Math.sin(t * 10 + i * 1.5) > 0.3;
         mat.emissiveIntensity = blink ? 1.5 : 0.2;
       });
     }
@@ -311,7 +304,7 @@ const RamRing: React.FC<{ percent: number; color: string }> = ({ percent, color 
     }
   });
 
-  const ringColor = percent > 85 ? '#ff2a2a' : percent > 60 ? '#f59e0b' : '#00ff88';
+  const ringColor = percent > 85 ? '#ff2a2a' : percent > 60 ? '#f59e0b' : color;
 
   return (
     <group position={[0, -0.9, 0]}>
@@ -348,25 +341,36 @@ export const DeviceModel: React.FC<DeviceModelProps> = ({
   onClick,
 }) => {
   const groupRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
   const online = connection === 'online';
   const connecting = connection === 'connecting';
   const hasGLTF = useModelAvailable(deviceType);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
     // Slow idle rotation
     groupRef.current.rotation.y += delta * 0.1;
     // Connecting pulse scale
     if (connecting) {
-      const scale = 1 + Math.sin(Date.now() * 0.005) * 0.05;
+      const scale = 1 + Math.sin(clock.getElapsedTime() * 5) * 0.05;
       groupRef.current.scale.setScalar(scale);
+    } else {
+      groupRef.current.scale.setScalar(1);
     }
   });
 
   return (
     <group position={position}>
       <Float speed={1.5} rotationIntensity={0} floatIntensity={online ? 0.15 : 0}>
-        <group ref={groupRef} onClick={onClick}>
+        <group
+          ref={groupRef}
+          onClick={onClick}
+          onPointerOver={(event) => {
+            event.stopPropagation();
+            setHovered(true);
+          }}
+          onPointerOut={() => setHovered(false)}
+        >
           {/* GLTF auto-detect: use downloaded model if available, else procedural */}
           {hasGLTF ? (
             <GLTFModel path={GLTF_PATHS[deviceType]} color={color} online={online} />
@@ -384,29 +388,30 @@ export const DeviceModel: React.FC<DeviceModelProps> = ({
           )}
 
           {/* Holographic name label */}
-          <Text
-            position={[0, 1.2, 0]}
-            fontSize={0.18}
-            color={color}
-            anchorX="center"
-            anchorY="middle"
-            font="/fonts/SpaceGrotesk-Bold.ttf"
-            outlineWidth={0.005}
-            outlineColor="#000000"
-          >
-            {name.toUpperCase()}
-          </Text>
+          <ErrorBoundary3D>
+            <Text
+              position={[0, 1.2, 0]}
+              fontSize={0.18}
+              color={color}
+              anchorX="center"
+              anchorY="middle"
+              outlineWidth={0.005}
+              outlineColor="#000000"
+            >
+              {name.toUpperCase()}
+            </Text>
 
-          {/* Status badge */}
-          <Text
-            position={[0, 1.0, 0]}
-            fontSize={0.1}
-            color={online ? '#00ff88' : connecting ? '#f59e0b' : '#ff2a2a'}
-            anchorX="center"
-            anchorY="middle"
-          >
-            {online ? 'ONLINE' : connecting ? 'CONNECTING...' : 'OFFLINE'}
-          </Text>
+            {/* Status badge */}
+            <Text
+              position={[0, 1.0, 0]}
+              fontSize={0.1}
+              color={online ? '#00ff88' : connecting ? '#f59e0b' : '#ff2a2a'}
+              anchorX="center"
+              anchorY="middle"
+            >
+              {online ? 'ONLINE' : connecting ? 'CONNECTING...' : 'OFFLINE'}
+            </Text>
+          </ErrorBoundary3D>
 
           {/* Agent activity visualization */}
           <NodeAgentActivity
@@ -421,9 +426,9 @@ export const DeviceModel: React.FC<DeviceModelProps> = ({
             <meshStandardMaterial
               color={color}
               emissive={color}
-              emissiveIntensity={online ? 0.3 : 0.05}
+              emissiveIntensity={online ? (hovered ? 0.45 : 0.3) : 0.05}
               transparent
-              opacity={0.15}
+              opacity={hovered ? 0.24 : 0.15}
             />
           </mesh>
         </group>

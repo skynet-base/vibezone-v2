@@ -16,6 +16,7 @@ import { ConfigManager } from './managers/ConfigManager';
 import { TaskManager } from './managers/TaskManager';
 import { TeamImporter } from './managers/TeamImporter';
 import { NodeMonitorManager } from './managers/NodeMonitorManager';
+import { ProcessWatcherManager } from './managers/ProcessWatcherManager';
 import { registerIPCHandlers } from './ipc/ipc-handlers';
 import os from 'os';
 import { NODE_CONFIG } from '../shared/types';
@@ -49,16 +50,18 @@ if (detectedNode && !configManager.getSettings().localNodeId) {
 }
 
 const nodeMonitor = new NodeMonitorManager(configManager);
+const processWatcher = new ProcessWatcherManager(configManager);
 
 const isDev = !app.isPackaged;
-const DEV_PORT = process.env.VITE_DEV_PORT || '5173';
+const DEV_PORT = process.env.VITE_DEV_PORT || '5176';
 
 function createWindow(): void {
   const savedBounds = configManager.getWindowBounds();
+  const defaultBounds = { width: 1600, height: 950 };
 
   mainWindow = new BrowserWindow({
-    width: savedBounds?.width || 1400,
-    height: savedBounds?.height || 900,
+    width: savedBounds?.width || defaultBounds.width,
+    height: savedBounds?.height || defaultBounds.height,
     x: savedBounds?.x,
     y: savedBounds?.y,
     frame: false,
@@ -131,6 +134,7 @@ function createWindow(): void {
     taskManager,
     teamImporter,
     nodeMonitor,
+    processWatcher,
   );
 }
 
@@ -212,6 +216,9 @@ if (!gotLock) {
     // Start node monitoring
     nodeMonitor.start();
 
+    // Start process watcher (auto-detect agent spawns)
+    processWatcher.start();
+
     // Auto-setup hooks if enabled
     const settings = configManager.getSettings();
     if (settings.hookEnabled) {
@@ -266,6 +273,7 @@ if (!gotLock) {
     try { sshManager.destroyAll(); } catch (err) { console.error('SSHManager cleanup failed:', err); }
     try { gitStatusManager.stop(); } catch (err) { console.error('GitStatusManager cleanup failed:', err); }
     try { nodeMonitor.stop(); } catch (err) { console.error('NodeMonitor cleanup failed:', err); }
+    try { processWatcher.stop(); } catch (err) { console.error('ProcessWatcher cleanup failed:', err); }
     try { hookManager.uninstall(); } catch (err) { console.error('HookManager cleanup failed:', err); }
     try { teamImporter.unwatchAll(); } catch (err) { console.error('TeamImporter cleanup failed:', err); }
   });

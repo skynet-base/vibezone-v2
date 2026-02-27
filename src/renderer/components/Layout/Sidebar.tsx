@@ -37,6 +37,7 @@ export const Sidebar: React.FC = () => {
 
   const [sshExpanded, setSshExpanded] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -92,6 +93,7 @@ export const Sidebar: React.FC = () => {
     const agentColor = info?.color || '#5a5a78';
     const taskCount = taskCountBySession[session.id] || 0;
     const isActive = activeSessionId === session.id;
+    const isConfirming = confirmDeleteId === session.id;
 
     return (
       <motion.div
@@ -100,74 +102,115 @@ export const Sidebar: React.FC = () => {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -20 }}
         transition={{ delay: index * 0.03 }}
+        className="mb-0.5"
       >
-        <button
-          onClick={() => handleSelectSession(session.id)}
-          onContextMenu={async (e) => {
-            e.preventDefault();
-            const ok = await showConfirm({
-              title: 'Oturumu Sonlandir',
-              message: `"${session.name}" adli oturum kapatilacak. Devam etmek istiyor musunuz?`,
-              confirmText: 'Sonlandir',
-              variant: 'danger',
-            });
-            if (ok) killSession(session.id);
-          }}
-          className={`w-full text-left px-3 py-2 rounded-lg mb-0.5 transition-all duration-150 group relative overflow-hidden ${isActive
-              ? 'glass-1'
-              : 'hover:bg-vz-border/20 border border-transparent'
-            }`}
-          style={isActive ? { borderColor: agentColor + '30' } : undefined}
-        >
-          {/* Active session left accent bar */}
-          {isActive && (
-            <div
-              className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full"
-              style={{ backgroundColor: agentColor }}
-            />
-          )}
-
-          {/* Hover left border */}
-          <div
-            className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full opacity-0 group-hover:opacity-40 transition-opacity"
-            style={{ backgroundColor: agentColor }}
-          />
-
-          <div className="flex items-center gap-2">
-            {/* Agent color dot */}
-            <span
-              className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: agentColor }}
-            />
-
-            {/* Name */}
-            <span className="text-xs font-medium text-vz-text truncate flex-1">
-              {session.name}
-            </span>
-
-            {/* Task count badge */}
-            {taskCount > 0 && (
-              <span className="text-[9px] bg-vz-amber/20 text-vz-amber px-1.5 py-0.5 rounded-full font-bold">
-                {taskCount}
+        <AnimatePresence mode="wait" initial={false}>
+          {isConfirming ? (
+            /* Inline confirm bubble */
+            <motion.div
+              key="confirm"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.12 }}
+              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg"
+              style={{
+                background: 'rgba(255,68,68,0.08)',
+                border: '1px solid rgba(255,68,68,0.25)',
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: agentColor }}
+              />
+              <span className="text-[11px] text-red-400/80 flex-1 truncate min-w-0">
+                {session.name} silinsin?
               </span>
-            )}
-
-            {/* Status dot */}
-            <span
-              className={`w-2 h-2 rounded-full flex-shrink-0 ${session.status === 'working' || session.status === 'waiting'
-                  ? 'pulse-dot'
-                  : ''
+              <button
+                onClick={() => { killSession(session.id); setConfirmDeleteId(null); }}
+                className="text-[10px] px-2 py-0.5 rounded font-medium flex-shrink-0 transition-colors"
+                style={{
+                  background: 'rgba(255,68,68,0.2)',
+                  color: '#ff4444',
+                  border: '1px solid rgba(255,68,68,0.3)',
+                }}
+              >
+                Sil
+              </button>
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="text-[10px] px-2 py-0.5 rounded text-vz-muted hover:text-vz-text flex-shrink-0 transition-colors"
+                style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                İptal
+              </button>
+            </motion.div>
+          ) : (
+            /* Normal session row */
+            <motion.div
+              key="normal"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.12 }}
+              className="relative group"
+            >
+              <button
+                onClick={() => handleSelectSession(session.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setConfirmDeleteId(session.id);
+                }}
+                className={`w-full text-left px-3 py-2 pr-8 rounded-lg transition-all duration-150 relative overflow-hidden ${
+                  isActive
+                    ? 'glass-1'
+                    : 'hover:bg-vz-border/20 border border-transparent'
                 }`}
-              style={{ backgroundColor: STATUS_COLORS[session.status] }}
-              title={session.status}
-            />
-          </div>
+                style={isActive ? { borderColor: agentColor + '30' } : undefined}
+              >
+                {/* Active session left accent bar */}
+                {isActive && (
+                  <div
+                    className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full"
+                    style={{ backgroundColor: agentColor }}
+                  />
+                )}
+                {/* Hover left border */}
+                <div
+                  className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full opacity-0 group-hover:opacity-40 transition-opacity"
+                  style={{ backgroundColor: agentColor }}
+                />
 
-          {/* CWD */}
-          <div className="text-[10px] text-vz-muted mt-0.5 font-mono truncate pl-4">
-            {truncateCwd(session.cwd)}
-          </div>
-        </button>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: agentColor }} />
+                  <span className="text-xs font-medium text-vz-text truncate flex-1">{session.name}</span>
+                  {taskCount > 0 && (
+                    <span className="text-[9px] bg-vz-amber/20 text-vz-amber px-1.5 py-0.5 rounded-full font-bold">{taskCount}</span>
+                  )}
+                  <span
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${session.status === 'working' || session.status === 'waiting' ? 'pulse-dot' : ''}`}
+                    style={{ backgroundColor: STATUS_COLORS[session.status] }}
+                    title={session.status}
+                  />
+                </div>
+                <div className="text-[10px] text-vz-muted mt-0.5 font-mono truncate pl-4">
+                  {truncateCwd(session.cwd)}
+                </div>
+              </button>
+
+              {/* × delete button — appears on hover, outside the main button */}
+              <button
+                onClick={() => setConfirmDeleteId(session.id)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all duration-150 hover:bg-red-500/20 text-vz-muted hover:text-red-400 z-10"
+                title="Agent'ı sil"
+              >
+                <svg width="8" height="8" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     );
   };

@@ -29,6 +29,25 @@
   --neon-glow-amber: 0 0 12px rgba(255, 184, 0, 0.5), 0 0 32px rgba(255, 184, 0, 0.2), inset 0 0 8px rgba(255, 184, 0, 0.15);
   
   --glass-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), inset 0 -1px 1px rgba(0, 0, 0, 0.5), 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  /* v3 additions */
+  --vz-surface-3:   #111130;
+  --vz-border-soft: #121228;
+  --vz-red:    #FF3B5C;
+  --vz-indigo: #818CF8;
+
+  /* PC identity colors */
+  --pc1-color: #00CCFF;
+  --pc2-color: #F59E0B;
+  --vps-color: #00FF88;
+
+  /* Layout dimensions */
+  --leftnav-width:      60px;
+  --rightsidebar-width: 220px;
+  --topbar-height:      28px;
+  --terminal-default:   260px;
+  --tabbar-height:      32px;
+  --infobar-height:     28px;
 }
 
 @layer base {
@@ -81,6 +100,10 @@
     box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.4);
   }
 
+  /* Global interactive element cursors */
+  button, [role="button"], a {
+    cursor: pointer;
+  }
 }
 
 @layer components {

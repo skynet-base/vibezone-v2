@@ -60,6 +60,23 @@ export const ChatPanel: React.FC = () => {
     }
   };
 
+  const handleFileAttach = async () => {
+    try {
+      const filePath = await api().dialog.openFile([
+        { name: 'Kod Dosyaları', extensions: ['ts', 'tsx', 'js', 'jsx', 'py', 'go', 'rs', 'md', 'json', 'yaml', 'yml', 'txt', 'sh', 'css', 'html'] },
+        { name: 'Tüm Dosyalar', extensions: ['*'] },
+      ]);
+      if (filePath) {
+        // Normalize path separators for cross-platform display
+        const normalized = filePath.replace(/\\/g, '/');
+        setInput((prev) => (prev ? `${prev} @${normalized}` : `@${normalized}`));
+        inputRef.current?.focus();
+      }
+    } catch (err) {
+      console.error('File attach error:', err);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -123,6 +140,19 @@ export const ChatPanel: React.FC = () => {
       {/* Input */}
       <div className="px-3 py-2 border-t border-vz-border/30">
         <div className="flex items-center gap-2">
+          {/* File attach button */}
+          <button
+            onClick={handleFileAttach}
+            disabled={!activeSessionId}
+            className="p-1.5 rounded-lg text-vz-muted hover:text-vz-cyan hover:bg-vz-cyan/15
+              border border-transparent hover:border-vz-cyan/30 transition-all
+              disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+            title="Dosya Ekle"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
           <input
             ref={inputRef}
             type="text"

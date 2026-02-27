@@ -7,6 +7,8 @@ import { staggerContainer, fadeUp } from '../../lib/animations';
 import { useWidgetLayout } from '../../hooks/useWidgetLayout';
 import { WidgetCard } from '../UI/WidgetCard';
 import type { SessionStatus, TaskStatus } from '@shared/types';
+import { NODE_CONFIG } from '@shared/types';
+import { PCHealthCard } from './PCHealthCard';
 
 const AnimatedNumber: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = '' }) => {
   return (
@@ -268,6 +270,7 @@ export const DashboardView: React.FC = () => {
   const tasks = useSessionStore((s) => s.tasks);
   const activities = useSessionStore((s) => s.activities);
   const sprintState = useSessionStore((s) => s.sprintState);
+  const nodeStatuses = useSessionStore((s) => s.nodeStatuses);
   const setCreateAgentModalOpen = useSessionStore((s) => s.setCreateAgentModalOpen);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -328,6 +331,17 @@ export const DashboardView: React.FC = () => {
         >
           Duzeni Sifirla
         </button>
+      </div>
+
+      {/* PC Health row */}
+      <div className="px-4 py-3 grid grid-cols-3 gap-3 flex-shrink-0 border-b border-vz-border/30" style={{ height: 180 }}>
+        {NODE_CONFIG.slice(0, 3).map((node) => (
+          <PCHealthCard
+            key={node.id}
+            nodeId={node.id}
+            status={nodeStatuses.find((s) => s.nodeId === node.id)}
+          />
+        ))}
       </div>
 
       {/* Widget canvas */}

@@ -201,6 +201,15 @@ export interface GGAgentStatus {
   autonomous_cron: boolean;
 }
 
+// A live AI agent process detected on a node (PowerShell/terminal spawn)
+export interface DetectedAgent {
+  pid: string;
+  agentType: AgentType;
+  nodeId: NodeId;
+  cwd?: string;
+  startedAt: number;
+}
+
 export interface NodeStatus {
   nodeId: NodeId;
   connection: NodeConnectionStatus;
@@ -212,6 +221,7 @@ export interface NodeStatus {
   cronJobs?: NodeCronJob[];
   error?: string;
   gg_agent_status?: GGAgentStatus;
+  detectedAgents?: DetectedAgent[];
 }
 
 export interface NodeService {
@@ -360,4 +370,7 @@ export const IPC = {
 
   // System
   SYSTEM_GET_HOME_DIR: 'system:get-home-dir',
+
+  // Process Watcher (auto-detect agent spawns in terminal)
+  AGENT_DETECTED_UPDATE: 'agent:detected-update',
 } as const;

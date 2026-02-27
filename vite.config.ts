@@ -4,11 +4,12 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(__dirname), '');
-  const devPort = parseInt(env.VITE_DEV_PORT || '5173', 10);
+  const devPort = parseInt(env.VITE_DEV_PORT || '5176', 10);
 
   return {
     plugins: [react()],
     root: 'src/renderer',
+    publicDir: '../../public',
     base: './',
     build: {
       outDir: '../../dist/renderer',

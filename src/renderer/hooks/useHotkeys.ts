@@ -14,11 +14,11 @@ export interface HotkeyConfig {
 // Export the hotkey registry so CommandPalette can display them
 export const HOTKEY_REGISTRY: HotkeyConfig[] = [
   { key: 'k', ctrl: true, description: 'Command Palette aç/kapat', category: 'navigation', action: () => useSessionStore.getState().toggleCommandPalette() },
-  { key: 'b', ctrl: true, description: 'Sidebar aç/kapat', category: 'navigation', action: () => useSessionStore.getState().toggleSidebar() },
+  { key: 'b', ctrl: true, description: 'Sağ sidebar aç/kapat', category: 'navigation', action: () => { const s = useSessionStore.getState(); s.setRightSidebarOpen(!s.rightSidebarOpen); } },
   { key: ',', ctrl: true, description: 'Ayarları aç', category: 'window', action: () => useSessionStore.getState().setSettingsModalOpen(true) },
   { key: '`', ctrl: true, description: 'Terminal aç/kapat', category: 'terminal', action: () => useSessionStore.getState().toggleTerminal() },
   { key: 'T', ctrl: true, shift: true, description: 'Yeni shell aç', category: 'terminal', action: () => { /* quickCreateShell — useIPC aracılığıyla tetiklenmeli */ } },
-  { key: '1', ctrl: true, description: 'Office görünümüne geç', category: 'navigation', action: () => useSessionStore.getState().setActiveView('office') },
+  { key: '1', ctrl: true, description: 'Terminal görünümüne geç', category: 'navigation', action: () => useSessionStore.getState().setActiveView('terminal') },
   { key: '2', ctrl: true, description: 'Tasks görünümüne geç', category: 'navigation', action: () => useSessionStore.getState().setActiveView('tasks') },
   { key: '3', ctrl: true, description: 'Dashboard görünümüne geç', category: 'navigation', action: () => useSessionStore.getState().setActiveView('dashboard') },
   { key: '4', ctrl: true, description: 'Nodes görünümüne geç', category: 'navigation', action: () => useSessionStore.getState().setActiveView('nodes') },
@@ -48,10 +48,11 @@ export function useHotkeys() {
         return;
       }
 
-      // Ctrl+B — Sidebar toggle
+      // Ctrl+B — Right sidebar toggle
       if (ctrl && !shift && e.key === 'b') {
         e.preventDefault();
-        store.getState().toggleSidebar();
+        const s = store.getState();
+        s.setRightSidebarOpen(!s.rightSidebarOpen);
         return;
       }
 
@@ -113,7 +114,7 @@ export function useHotkeys() {
       // Ctrl+1-4 — Tab switch
       if (ctrl && !shift && ['1', '2', '3', '4'].includes(e.key)) {
         e.preventDefault();
-        const views = ['office', 'tasks', 'dashboard', 'nodes'] as const;
+        const views = ['terminal', 'tasks', 'dashboard', 'nodes'] as const;
         const idx = parseInt(e.key) - 1;
         if (views[idx]) {
           store.getState().setActiveView(views[idx]);

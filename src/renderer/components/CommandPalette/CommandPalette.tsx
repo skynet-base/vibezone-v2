@@ -201,15 +201,15 @@ export const CommandPalette: React.FC = () => {
         icon: info?.emoji ?? '?',
         action: () => {
           setActiveSession(s.id);
-          setActiveView('office');
+          setActiveView('terminal');
           close();
         },
       });
     });
 
     // --- Gorunumler ---
-    const views: { id: 'office' | 'tasks' | 'dashboard' | 'nodes'; label: string; icon: string; shortcut: string }[] = [
-      { id: 'office', label: 'Sahne', icon: '⬡', shortcut: 'Ctrl+1' },
+    const views: { id: 'terminal' | 'tasks' | 'dashboard' | 'nodes'; label: string; icon: string; shortcut: string }[] = [
+      { id: 'terminal', label: 'Terminal', icon: '>', shortcut: 'Ctrl+1' },
       { id: 'tasks', label: 'Gorevler', icon: '▦', shortcut: 'Ctrl+2' },
       { id: 'dashboard', label: 'Dashboard', icon: '⊞', shortcut: 'Ctrl+3' },
       { id: 'nodes', label: 'Altyapi', icon: '⬡', shortcut: 'Ctrl+4' },

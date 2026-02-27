@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useSessionStore } from './useSessionStore';
 import { useToastStore } from './useToastStore';
-import type { Session, SessionConfig, SSHHost, GitStatus, AutocompleteResult, AppSettings, Task, HookEvent, NodeStatus } from '@shared/types';
+import type { Session, SessionConfig, SSHHost, GitStatus, AutocompleteResult, AppSettings, Task, HookEvent, NodeStatus, DetectedAgent, NodeId } from '@shared/types';
 import { IPC } from '@shared/types';
 
 const api = () => window.electronAPI;
@@ -18,7 +18,16 @@ export function useIPC() {
     const handleStatus = (...args: unknown[]) => {
       const session = args[0] as Session;
       if (session?.id) {
+        const prevSession = useSessionStore.getState().sessions.find((s) => s.id === session.id);
         store.updateSession(session.id, { status: session.status, lastActivity: Date.now() });
+
+        // Auto-switch to 3D scene when a bot starts working
+        if (session.status === 'working' && prevSession?.status !== 'working') {
+          const { activeView } = useSessionStore.getState();
+          if (activeView !== 'terminal') {
+            store.setActiveView('terminal');
+          }
+        }
       }
     };
 
@@ -48,11 +57,19 @@ export function useIPC() {
       }
     };
 
+    const handleAgentDetected = (...args: unknown[]) => {
+      const payload = args[0] as { nodeId: NodeId; agents: DetectedAgent[] };
+      if (payload?.nodeId) {
+        store.setDetectedAgents(payload.nodeId, payload.agents);
+      }
+    };
+
     api().on(IPC.SESSION_OUTPUT, handleOutput);
     api().on(IPC.SESSION_STATUS, handleStatus);
     api().on(IPC.GIT_STATUS_UPDATE, handleGitUpdate);
     api().on(IPC.HOOK_EVENT, handleHookEvent);
     api().on(IPC.NODE_STATUS_UPDATE, handleNodeUpdate);
+    api().on(IPC.AGENT_DETECTED_UPDATE, handleAgentDetected);
 
     return () => {
       api().off(IPC.SESSION_OUTPUT, handleOutput);
@@ -60,6 +77,7 @@ export function useIPC() {
       api().off(IPC.GIT_STATUS_UPDATE, handleGitUpdate);
       api().off(IPC.HOOK_EVENT, handleHookEvent);
       api().off(IPC.NODE_STATUS_UPDATE, handleNodeUpdate);
+      api().off(IPC.AGENT_DETECTED_UPDATE, handleAgentDetected);
     };
   }, []);
 
@@ -131,7 +149,7 @@ export function useIPC() {
         switch (e.key) {
           case '1':
             e.preventDefault();
-            store.setActiveView('office');
+            store.setActiveView('terminal');
             break;
           case '2':
             e.preventDefault();

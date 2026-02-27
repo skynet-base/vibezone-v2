@@ -45,8 +45,20 @@ const IPC = {
   NODE_REFRESH: 'node:refresh',
   NODE_EXEC: 'node:exec',
   NODE_STATUS_UPDATE: 'node:status-update',
+  AGENT_DETECTED_UPDATE: 'agent:detected-update',
   SYSTEM_GET_HOME_DIR: 'system:get-home-dir',
 } as const;
+
+const PUSH_CHANNELS: string[] = [
+  IPC.SESSION_OUTPUT,
+  IPC.SESSION_STATUS,
+  IPC.GIT_STATUS_UPDATE,
+  IPC.HOOK_EVENT,
+  IPC.NODE_STATUS_UPDATE,
+  IPC.AGENT_DETECTED_UPDATE,
+];
+
+const listenerRegistry = new Map<string, Map<(...args: any[]) => void, (...args: any[]) => void>>();
 
 // Type-safe API exposed to renderer
 const api = {
@@ -151,29 +163,29 @@ const api = {
 
   // ---- Generic event listeners for push events ----
   on: (channel: string, callback: (...args: any[]) => void) => {
-    const allowedChannels: string[] = [
-      IPC.SESSION_OUTPUT,
-      IPC.SESSION_STATUS,
-      IPC.GIT_STATUS_UPDATE,
-      IPC.HOOK_EVENT,
-      IPC.NODE_STATUS_UPDATE,
-    ];
-    if (!allowedChannels.includes(channel)) return;
+    if (!PUSH_CHANNELS.includes(channel)) return;
     const listener = (_event: any, ...args: any[]) => callback(...args);
+    const listenersByChannel = listenerRegistry.get(channel) ?? new Map<(...args: any[]) => void, (...args: any[]) => void>();
+    const existing = listenersByChannel.get(callback);
+    if (existing) {
+      ipcRenderer.removeListener(channel, existing);
+    }
+    listenersByChannel.set(callback, listener);
+    listenerRegistry.set(channel, listenersByChannel);
     ipcRenderer.on(channel, listener);
-    // Return the wrapped listener so callers can remove it
-    return listener;
   },
-  off: (channel: string, _callback: (...args: any[]) => void) => {
-    const allowedChannels: string[] = [
-      IPC.SESSION_OUTPUT,
-      IPC.SESSION_STATUS,
-      IPC.GIT_STATUS_UPDATE,
-      IPC.HOOK_EVENT,
-      IPC.NODE_STATUS_UPDATE,
-    ];
-    if (!allowedChannels.includes(channel)) return;
-    ipcRenderer.removeAllListeners(channel);
+  off: (channel: string, callback: (...args: any[]) => void) => {
+    if (!PUSH_CHANNELS.includes(channel)) return;
+    const listenersByChannel = listenerRegistry.get(channel);
+    if (!listenersByChannel) return;
+    const listener = listenersByChannel.get(callback);
+    if (!listener) return;
+
+    ipcRenderer.removeListener(channel, listener);
+    listenersByChannel.delete(callback);
+    if (listenersByChannel.size === 0) {
+      listenerRegistry.delete(channel);
+    }
   },
 };
 

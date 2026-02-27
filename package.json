@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "concurrently -k -n main,renderer,electron \"npm run dev:main\" \"npm run dev:renderer\" \"npm run dev:electron\"",
     "dev:main": "tsc -p tsconfig.main.json --watch",
-    "dev:renderer": "vite",
-    "dev:electron": "wait-on http://localhost:5173 && electron .",
+    "dev:renderer": "vite --port 5176",
+    "dev:electron": "wait-on http://localhost:5176 && electron .",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "build": "npm run build:main && npm run build:renderer",
@@ -15,6 +15,7 @@
     "clean": "node -e \"const fs=require('fs');['dist'].forEach(d=>{if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true})}})\"",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "setup:good-guys": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-good-guys.ps1",
     "postinstall": "electron-builder install-app-deps",
     "package": "npm run build && electron-builder",
     "rebuild": "npx @electron/rebuild -f -w node-pty"

@@ -197,7 +197,7 @@ export const SettingsModal: React.FC = () => {
               <div>
                 <label className="block text-xs text-vz-text mb-2">Bu Bilgisayar (Local Node)</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {NODE_CONFIG.filter(n => n.monitorType === 'local' || n.id === 'pc4').map((node) => (
+                  {NODE_CONFIG.map((node) => (
                     <button
                       key={node.id}
                       onClick={() => updateSettings({ localNodeId: node.id })}

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { Session, SSHHost, AppSettings, GitStatus, Task, Activity, SprintState, NodeStatus, ChatMessage } from '@shared/types';
+import type { Session, SSHHost, AppSettings, GitStatus, Task, Activity, SprintState, NodeStatus, ChatMessage, DetectedAgent, NodeId } from '@shared/types';
 
-export type ActiveView = 'office' | 'tasks' | 'dashboard' | 'nodes';
+export type ActiveView = 'terminal' | 'tasks' | 'dashboard' | 'nodes';
 
 interface SessionStore {
   // Sessions
@@ -27,6 +27,10 @@ interface SessionStore {
   setSidebarWidth: (width: number) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+
+  // Right sidebar
+  rightSidebarOpen: boolean;
+  setRightSidebarOpen: (open: boolean) => void;
 
   // SSH Hosts
   sshHosts: SSHHost[];
@@ -65,6 +69,10 @@ interface SessionStore {
   // Nodes
   nodeStatuses: NodeStatus[];
   setNodeStatuses: (statuses: NodeStatus[]) => void;
+
+  // Detected agents (live process watcher)
+  detectedAgents: Map<NodeId, DetectedAgent[]>;
+  setDetectedAgents: (nodeId: NodeId, agents: DetectedAgent[]) => void;
 
   // Chat
   chatMessages: Map<string, ChatMessage[]>;
@@ -127,14 +135,14 @@ export const useSessionStore = create<SessionStore>((set) => ({
   setSessions: (sessions) => set({ sessions }),
 
   // Active view (persisted)
-  activeView: (localStorage.getItem('vz-activeView') as ActiveView) || 'office',
+  activeView: (localStorage.getItem('vz-activeView') as ActiveView) || 'terminal',
   setActiveView: (view) => {
     localStorage.setItem('vz-activeView', view);
     set({ activeView: view });
   },
 
   // Terminal (sidebar persisted)
-  terminalOpen: false,
+  terminalOpen: true,   // always on
   terminalHeight: 350,
   sidebarWidth: parseInt(localStorage.getItem('vz-sidebarWidth') || '240', 10),
   sidebarCollapsed: localStorage.getItem('vz-sidebarCollapsed') === 'true',
@@ -152,6 +160,12 @@ export const useSessionStore = create<SessionStore>((set) => ({
   setSidebarCollapsed: (collapsed) => {
     localStorage.setItem('vz-sidebarCollapsed', String(collapsed));
     set({ sidebarCollapsed: collapsed });
+  },
+
+  rightSidebarOpen: localStorage.getItem('vz-rightSidebar') !== 'false',
+  setRightSidebarOpen: (open) => {
+    localStorage.setItem('vz-rightSidebar', String(open));
+    set({ rightSidebarOpen: open });
   },
 
   // SSH Hosts
@@ -210,6 +224,15 @@ export const useSessionStore = create<SessionStore>((set) => ({
   // Nodes
   nodeStatuses: [],
   setNodeStatuses: (statuses) => set({ nodeStatuses: statuses }),
+
+  // Detected agents
+  detectedAgents: new Map(),
+  setDetectedAgents: (nodeId, agents) =>
+    set((state) => {
+      const next = new Map(state.detectedAgents);
+      next.set(nodeId, agents);
+      return { detectedAgents: next };
+    }),
 
   // Chat
   chatMessages: new Map(),

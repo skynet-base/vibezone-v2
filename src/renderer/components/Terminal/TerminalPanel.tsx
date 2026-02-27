@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSessionStore } from '../../hooks/useSessionStore';
 import { useIPC } from '../../hooks/useIPC';
@@ -6,8 +6,26 @@ import { useSlashCommands } from '../../hooks/useSlashCommands';
 import { terminalManager } from './TerminalManager';
 import { ChatPanel } from '../Chat/ChatPanel';
 import { AGENT_COLORS, AGENT_INFO } from '@shared/types';
+import { TerminalTabBar } from './TerminalTabBar';
+import { TerminalInfoBar } from './TerminalInfoBar';
 import { IPC } from '@shared/types';
 import type { ChatMessage } from '@shared/types';
+
+// Detect if a terminal line looks like a code execution command
+const RUN_PATTERN = /^(python3?|node|ts-node|deno\s+run|bash|sh|ruby|go\s+run|cargo\s+run|npx|bun\s+run|php|perl|lua|Rscript|java|\.\/)/i;
+
+// TODO(human): Map file extensions to run commands.
+// Given a file path like "/home/user/script.py", return the shell command to run it.
+// e.g. ".py" → `python3 "filepath"`, ".js" → `node "filepath"`, ".sh" → `bash "filepath"`
+// Return null if the extension is unknown (user will be asked to type manually).
+function getRunCommand(_filePath: string): string | null {
+  const ext = _filePath.split('.').pop()?.toLowerCase() ?? '';
+  // TODO(human): implement extension → command mapping here
+  // Hint: use a Record<string, string> or switch statement
+  // extensions to handle: py, js, ts, sh, rb, go, rs, java, php, r, lua, pl, c, cpp
+  void ext;
+  return null;
+}
 
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT_RATIO = 0.7;
@@ -25,6 +43,9 @@ export const TerminalPanel: React.FC = () => {
   const addChatMessage = useSessionStore((s) => s.addChatMessage);
   const { sendInput, resizeSession, getSessionOutput, quickCreateShell, killSession } = useIPC();
   const { handleSlashCommand } = useSlashCommands();
+
+  const [hasNewOutput, setHasNewOutput] = useState(false);
+  const [showRunPicker, setShowRunPicker] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -58,9 +79,11 @@ export const TerminalPanel: React.FC = () => {
           inputBuffer.current += data;
         }
 
-        // Also capture user input as chat message
-        if ((data === '\r' || data === '\n') && inputBuffer.current === '') {
-          // Just sent, the buffer was already cleared
+        // Auto-open chat when user runs code
+        if ((data === '\r' || data === '\n') && RUN_PATTERN.test(inputBuffer.current)) {
+          if (!useSessionStore.getState().chatOpen) {
+            useSessionStore.getState().toggleChat();
+          }
         }
 
         sendInput(sessionId, data);
@@ -85,6 +108,10 @@ export const TerminalPanel: React.FC = () => {
           content: clean,
           timestamp: Date.now(),
         });
+        // Notify user: new output arrived while chat is closed
+        if (!useSessionStore.getState().chatOpen && clean.length > 30) {
+          setHasNewOutput(true);
+        }
       }
     };
 
@@ -159,6 +186,29 @@ export const TerminalPanel: React.FC = () => {
     document.addEventListener('mouseup', onUp);
   }, [terminalHeight, setTerminalHeight, activeSessionId]);
 
+  // Run a file in the active terminal
+  const handleRunFile = useCallback(async () => {
+    if (!activeSessionId) return;
+    setShowRunPicker(false);
+    const filePath = await window.electronAPI.dialog.openFile([
+      { name: 'Kod Dosyaları', extensions: ['py', 'js', 'ts', 'sh', 'rb', 'go', 'rs', 'java', 'php', 'r', 'lua', 'pl'] },
+      { name: 'Tüm Dosyalar', extensions: ['*'] },
+    ]);
+    if (!filePath) return;
+    const normalized = filePath.replace(/\\/g, '/');
+    const cmd = getRunCommand(normalized) ?? `"${normalized}"`;
+    await sendInput(activeSessionId, cmd + '\n');
+    if (!useSessionStore.getState().chatOpen) {
+      useSessionStore.getState().toggleChat();
+    }
+  }, [activeSessionId, sendInput]);
+
+  // Clear notification badge when chat is opened
+  const handleToggleChat = useCallback(() => {
+    setHasNewOutput(false);
+    toggleChat();
+  }, [toggleChat]);
+
   // Terminal ref callback
   const setTerminalRef = useCallback((sessionId: string) => (el: HTMLDivElement | null) => {
     if (el) {
@@ -225,105 +275,14 @@ export const TerminalPanel: React.FC = () => {
           <div className="absolute inset-0 bg-mesh-glow opacity-30 pointer-events-none z-0"></div>
 
           {/* Tab bar */}
-          <div className="relative z-10 flex items-center h-10 bg-vz-surface-2/40 backdrop-blur-md px-3 gap-2 overflow-x-auto flex-shrink-0 border-b border-vz-border/50">
-            {sessions.map((session) => {
-              const agentColor = AGENT_COLORS[session.agentType] || '#5a5a78';
-              const isActiveTab = activeSessionId === session.id;
-
-              return (
-                <button
-                  key={session.id}
-                  onClick={() => setActiveSession(session.id)}
-                  className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ${isActiveTab
-                    ? 'text-vz-text'
-                    : 'text-vz-muted hover:text-vz-text hover:bg-vz-surface-2'
-                    }`}
-                  style={isActiveTab ? {
-                    backgroundColor: agentColor + '20',
-                    border: `1px solid ${agentColor}50`,
-                    boxShadow: `0 0 10px ${agentColor}30, inset 0 0 5px ${agentColor}20`,
-                  } : { border: '1px solid transparent' }}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: STATUS_COLORS[session.status] || '#6b7280', boxShadow: `0 0 5px ${STATUS_COLORS[session.status] || '#6b7280'}` }}
-                  />
-                  <span
-                    className="font-medium"
-                    style={{
-                      color: isActiveTab ? agentColor : undefined,
-                      textShadow: isActiveTab ? `0 0 8px ${agentColor}80` : undefined
-                    }}
-                  >
-                    {session.name}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); killSession(session.id); }}
-                    className={`ml-1 opacity-0 group-hover:opacity-100 hover:text-vz-red transition-opacity ${isActiveTab ? 'opacity-100' : ''}`}
-                    title="Terminal Kapat"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M3 3L9 9M9 3L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                </button>
-              );
-            })}
-
-            {/* Spacer + Chat Toggle + Add + Close buttons */}
-            <div className="flex-1" />
-            <button
-              onClick={toggleChat}
-              className={`p-1.5 rounded-lg transition-all duration-300 ${chatOpen
-                ? 'bg-vz-cyan/20 text-vz-cyan neon-border-cyan'
-                : 'text-vz-muted hover:text-vz-cyan hover:bg-vz-surface-2'
-                }`}
-              title="Chat Paneli"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <button
-              onClick={quickCreateShell}
-              className="p-1.5 rounded-lg hover:bg-vz-green/20 text-vz-muted hover:text-vz-green transition-all duration-300 hover:neon-border-green"
-              title="Yeni Terminal (Ctrl+Shift+T)"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12">
-                <path d="M6 1V11M1 6H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
-            <button
-              onClick={toggleTerminal}
-              className="p-1.5 rounded-lg hover:bg-vz-red/20 text-vz-muted hover:text-vz-red transition-all duration-300 hover:neon-border-pink"
-              title="Terminal Kapat (Ctrl+`)"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12">
-                <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
+          <div className="relative z-10">
+            <TerminalTabBar />
           </div>
 
           {/* Info bar */}
           {activeSession && (
-            <div className="relative z-10 flex items-center h-6 px-4 gap-2 bg-vz-surface-2/20 backdrop-blur-sm border-b border-vz-border/30 flex-shrink-0">
-              <span
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: STATUS_COLORS[activeSession.status] || '#6b7280' }}
-              />
-              <span
-                className="text-[10px] font-medium tracking-wide uppercase"
-                style={{ color: AGENT_COLORS[activeSession.agentType] }}
-              >
-                {activeSession.name}
-              </span>
-              <span className="text-[10px] text-vz-muted uppercase tracking-wider">
-                {activeSession.status}
-              </span>
-              <div className="w-px h-2.5 bg-vz-border/50" />
-              <span className="text-[10px] text-vz-muted font-mono truncate opacity-60 hover:opacity-100 transition-opacity">
-                {activeSession.cwd}
-              </span>
+            <div className="relative z-10">
+              <TerminalInfoBar />
             </div>
           )}
 

@@ -7,13 +7,15 @@ import type { NodeId, NodeStatus, NodeCommandResult } from '@shared/types';
 import { NodeInfoPanel } from './NodeInfoPanel';
 import { useWidgetLayout } from '../../hooks/useWidgetLayout';
 import { WidgetCard } from '../UI/WidgetCard';
-
-// Lazy load 3D scene to avoid blocking initial render
-const Node3DScene = lazy(() => import('./Node3DScene').then(m => ({ default: m.Node3DScene })));
+import { CyberOrb } from '../UI/CyberOrb';
 
 type ViewMode = '3d' | 'grid';
 
 const api = () => window.electronAPI;
+const LazyNode3DScene = lazy(async () => {
+  const mod = await import('./Node3DScene');
+  return { default: mod.Node3DScene };
+});
 
 const CONNECTION_COLORS: Record<string, string> = {
   online: '#00ff88',
@@ -607,17 +609,15 @@ export const NodesView: React.FC = () => {
           <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
             <button
               onClick={() => setViewMode('3d')}
-              className={`px-2.5 py-1.5 text-[10px] font-display font-semibold transition-colors ${
-                viewMode === '3d' ? 'bg-vz-cyan/15 text-vz-cyan' : 'text-vz-muted hover:text-vz-text'
-              }`}
+              className={`px-2.5 py-1.5 text-[10px] font-display font-semibold transition-colors ${viewMode === '3d' ? 'bg-vz-cyan/15 text-vz-cyan' : 'text-vz-muted hover:text-vz-text'
+                }`}
             >
               3D
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1.5 text-[10px] font-display font-semibold transition-colors ${
-                viewMode === 'grid' ? 'bg-vz-cyan/15 text-vz-cyan' : 'text-vz-muted hover:text-vz-text'
-              }`}
+              className={`px-2.5 py-1.5 text-[10px] font-display font-semibold transition-colors ${viewMode === 'grid' ? 'bg-vz-cyan/15 text-vz-cyan' : 'text-vz-muted hover:text-vz-text'
+                }`}
             >
               Grid
             </button>
@@ -647,7 +647,7 @@ export const NodesView: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* 3D Scene (not a widget — spans full width conditionally) */}
+      {/* 3D Scene (not a widget; spans full width conditionally) */}
       <AnimatePresence>
         {viewMode === '3d' && (
           <motion.div
@@ -658,14 +658,18 @@ export const NodesView: React.FC = () => {
             className="flex-shrink-0 overflow-hidden"
             style={{ border: '1px solid rgba(0,204,255,0.1)', margin: '0 20px' }}
           >
-            <div className="h-[300px] sm:h-[350px] lg:h-[400px] glass-2 rounded-2xl overflow-hidden">
-              <Suspense fallback={
-                <div className="w-full h-full flex flex-col items-center justify-center bg-vz-bg/60">
-                  <div className="w-8 h-8 border-2 border-vz-cyan/30 border-t-vz-cyan rounded-full animate-spin mb-3" />
-                  <span className="text-vz-muted text-xs font-display">3D sahne hazirlaniyor...</span>
-                </div>
-              }>
-                <Node3DScene onDeviceClick={(id) => setSelectedNode(id)} />
+            <div className="h-[300px] sm:h-[350px] lg:h-[400px] glass-2 rounded-2xl overflow-hidden relative">
+              <Suspense
+                fallback={(
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-vz-bg/80 text-vz-muted">
+                    <CyberOrb size={72} color="#00ccff" />
+                    <span className="text-[11px] font-mono tracking-wide uppercase">
+                      3D ag haritasi hazirlaniyor...
+                    </span>
+                  </div>
+                )}
+              >
+                <LazyNode3DScene onDeviceClick={(nodeId) => setSelectedNode(nodeId)} />
               </Suspense>
             </div>
           </motion.div>

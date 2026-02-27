@@ -1,15 +1,12 @@
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useFBX, Text, Html } from '@react-three/drei';
+import { Text, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Session } from '@shared/types';
 import { AGENT_INFO } from '@shared/types';
+import { ErrorBoundary3D } from '../UI/ErrorBoundary3D';
 
-const ROBOT_MODELS = [
-  '/models/robots/robot1.fbx',
-  '/models/robots/robot2.fbx',
-  '/models/robots/robot3.fbx',
-] as const;
+// Removed FBX dependencies entirely to ensure 100% instant load reliability.
 
 const STATUS_LABELS: Record<string, string> = {
   idle: 'Bosta',
@@ -32,109 +29,101 @@ function truncatePath(cwd: string, max = 28): string {
   return parts[0] + '/.../' + parts.slice(-2).join('/');
 }
 
-// ---- FBX model with centering and material override ----
-interface RobotModelProps {
-  modelPath: string;
+// ---- Procedural Robot to bypass FBX loading issues ----
+interface ProceduralRobotProps {
   agentColor: string;
   status: Session['status'];
 }
 
-const RobotModel: React.FC<RobotModelProps> = ({ modelPath, agentColor, status }) => {
-  const fbx = useFBX(modelPath);
-  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+const ProceduralRobot: React.FC<ProceduralRobotProps> = ({ agentColor, status }) => {
+  const groupRef = useRef<THREE.Group>(null);
 
-  const cloned = useMemo(() => {
-    const clone = fbx.clone(true);
-
-    // Center model and put feet on y=0
-    const box = new THREE.Box3().setFromObject(clone);
-    const center = box.getCenter(new THREE.Vector3());
-    const sz = box.getSize(new THREE.Vector3());
-
-    clone.position.sub(center);
-    clone.position.y += sz.y / 2;
-
-    // Scale to ~1.4 units tall
-    const targetHeight = 1.4;
-    const scaleFactor = sz.y > 0 ? targetHeight / sz.y : 1;
-    clone.scale.setScalar(scaleFactor);
-
-    // Apply agent color tint materials
-    const agentCol = new THREE.Color(agentColor);
-    const baseCol = agentCol.clone().multiplyScalar(0.2).add(new THREE.Color('#10102a'));
-
-    clone.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        mesh.castShadow = true;
-        const mat = new THREE.MeshStandardMaterial({
-          color: baseCol.clone(),
-          emissive: agentCol.clone(),
-          emissiveIntensity: 0.06,
-          metalness: 0.75,
-          roughness: 0.28,
-        });
-        mesh.material = mat;
-      }
-    });
-
-    return clone;
-  }, [fbx, agentColor]);
-
-  // Setup animation
-  useEffect(() => {
-    if (!cloned) return;
-    if (cloned.animations.length > 0) {
-      const mixer = new THREE.AnimationMixer(cloned);
-      const action = mixer.clipAction(cloned.animations[0]);
-      action.play();
-      mixerRef.current = mixer;
-    }
-    return () => {
-      mixerRef.current?.stopAllAction();
-      mixerRef.current = null;
-    };
-  }, [cloned]);
-
-  useFrame((state, delta) => {
-    if (!mixerRef.current) return;
-    const speed = WALK_SPEED[status] ?? 1.0;
-    mixerRef.current.update(delta * (speed > 0 ? speed * 1.8 : 0));
-
-    // Dynamic emissive pulsing
+  useFrame((state) => {
+    if (!groupRef.current) return;
     const t = state.clock.elapsedTime;
-    cloned.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
-        if (!mat?.emissive) return;
+    const speed = status === 'working' ? 4 : status === 'idle' ? 1.5 : 0;
+
+    // Simple walking/hovering animation
+    groupRef.current.position.y = Math.abs(Math.sin(t * speed)) * 0.08;
+
+    // Pulse emissive
+    groupRef.current.children.forEach((c) => {
+      if ((c as THREE.Mesh).isMesh) {
+        const mat = (c as THREE.Mesh).material as THREE.MeshStandardMaterial;
         if (status === 'working') {
-          mat.emissiveIntensity = 0.22 + Math.sin(t * 3.5) * 0.1;
+          mat.emissiveIntensity = 0.5 + Math.sin(t * 5) * 0.3;
         } else if (status === 'waiting') {
-          mat.emissiveIntensity = 0.05 + Math.sin(t * 1.2) * 0.03;
-        } else if (status === 'offline') {
-          mat.emissiveIntensity = 0.0;
-          mat.color.set('#2a2a35');
+          mat.emissiveIntensity = 0.1 + Math.sin(t * 2) * 0.1;
         } else {
-          mat.emissiveIntensity = 0.06 + Math.sin(t * 0.8) * 0.01;
+          mat.emissiveIntensity = 0.05;
         }
       }
     });
+
+    // Arm swing animation if moving
+    if (speed > 0) {
+      const leftArm = groupRef.current.children[4];
+      const rightArm = groupRef.current.children[5];
+      const leftLeg = groupRef.current.children[6];
+      const rightLeg = groupRef.current.children[7];
+      leftArm.rotation.x = Math.sin(t * speed) * 0.4;
+      rightArm.rotation.x = -Math.sin(t * speed) * 0.4;
+      leftLeg.rotation.x = -Math.sin(t * speed) * 0.3;
+      rightLeg.rotation.x = Math.sin(t * speed) * 0.3;
+    }
   });
 
-  return <primitive object={cloned} />;
-};
+  const matProps = useMemo(() => ({
+    color: '#0f0f1a',
+    emissive: agentColor,
+    emissiveIntensity: 0.1,
+    metalness: 0.8,
+    roughness: 0.2,
+  }), [agentColor]);
 
-// ---- Loading fallback ----
-const RobotFallback: React.FC<{ color: string }> = ({ color }) => {
-  const ref = useRef<THREE.Mesh>(null);
-  useFrame((state) => {
-    if (ref.current) ref.current.rotation.y = state.clock.elapsedTime * 0.6;
-  });
   return (
-    <mesh ref={ref} position={[0, 0.7, 0]}>
-      <boxGeometry args={[0.35, 1.4, 0.25]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} wireframe />
-    </mesh>
+    <group ref={groupRef} position={[0, -0.05, 0]}>
+      {/* Head */}
+      <mesh position={[0, 1.25, 0]}>
+        <boxGeometry args={[0.22, 0.22, 0.22]} />
+        <meshStandardMaterial {...matProps} />
+      </mesh>
+      {/* Eye / Visor */}
+      <mesh position={[0, 1.27, 0.12]}>
+        <boxGeometry args={[0.16, 0.06, 0.02]} />
+        <meshStandardMaterial color={agentColor} emissive={agentColor} emissiveIntensity={1.5} />
+      </mesh>
+      {/* Body */}
+      <mesh position={[0, 0.85, 0]}>
+        <boxGeometry args={[0.3, 0.5, 0.18]} />
+        <meshStandardMaterial {...matProps} />
+      </mesh>
+      {/* Core light */}
+      <mesh position={[0, 0.85, 0.1]} rotation={[0, 0, 0]}>
+        <circleGeometry args={[0.08, 16]} />
+        <meshStandardMaterial color={agentColor} emissive={agentColor} emissiveIntensity={2.5} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Left Arm */}
+      <mesh position={[-0.22, 0.9, 0]}>
+        <boxGeometry args={[0.08, 0.4, 0.08]} />
+        <meshStandardMaterial {...matProps} />
+      </mesh>
+      {/* Right Arm */}
+      <mesh position={[0.22, 0.9, 0]}>
+        <boxGeometry args={[0.08, 0.4, 0.08]} />
+        <meshStandardMaterial {...matProps} />
+      </mesh>
+      {/* Left Leg */}
+      <mesh position={[-0.08, 0.35, 0]}>
+        <boxGeometry args={[0.1, 0.5, 0.1]} />
+        <meshStandardMaterial {...matProps} />
+      </mesh>
+      {/* Right Leg */}
+      <mesh position={[0.08, 0.35, 0]}>
+        <boxGeometry args={[0.1, 0.5, 0.1]} />
+        <meshStandardMaterial {...matProps} />
+      </mesh>
+    </group>
   );
 };
 
@@ -199,7 +188,6 @@ export const RobotAgent: React.FC<RobotAgentProps> = ({
 
   const agentInfo = AGENT_INFO[session.agentType];
   const agentColor = agentInfo.color;
-  const modelPath = ROBOT_MODELS[sessionIndex % 3];
 
   const handleClick = useCallback(() => onClick(session.id), [onClick, session.id]);
 
@@ -244,9 +232,9 @@ export const RobotAgent: React.FC<RobotAgentProps> = ({
 
   const statusColor =
     session.status === 'working' ? '#00ff88'
-    : session.status === 'waiting' ? '#f59e0b'
-    : session.status === 'idle' ? '#00ccff'
-    : '#555555';
+      : session.status === 'waiting' ? '#f59e0b'
+        : session.status === 'idle' ? '#00ccff'
+          : '#555555';
 
   const LABEL_Y = 1.85;
 
@@ -258,13 +246,10 @@ export const RobotAgent: React.FC<RobotAgentProps> = ({
       onPointerOut={handlePointerOut}
     >
       {/* Robot model */}
-      <React.Suspense fallback={<RobotFallback color={agentColor} />}>
-        <RobotModel
-          modelPath={modelPath}
-          agentColor={agentColor}
-          status={session.status}
-        />
-      </React.Suspense>
+      <ProceduralRobot
+        agentColor={agentColor}
+        status={session.status}
+      />
 
       {/* Status ring */}
       <StatusRing color={agentColor} status={session.status} />
@@ -285,29 +270,30 @@ export const RobotAgent: React.FC<RobotAgentProps> = ({
         </mesh>
       )}
 
-      {/* Name label */}
-      <Text
-        position={[0, LABEL_Y, 0]}
-        fontSize={0.14}
-        color="white"
-        anchorX="center"
-        anchorY="bottom"
-        outlineWidth={0.013}
-        outlineColor="#000000"
-      >
-        {session.name}
-      </Text>
+      {/* Name and Status labels */}
+      <ErrorBoundary3D>
+        <Text
+          position={[0, LABEL_Y, 0]}
+          fontSize={0.14}
+          color="white"
+          anchorX="center"
+          anchorY="bottom"
+          outlineWidth={0.013}
+          outlineColor="#000000"
+        >
+          {session.name}
+        </Text>
 
-      {/* Status label */}
-      <Text
-        position={[0, LABEL_Y - 0.2, 0]}
-        fontSize={0.095}
-        color={statusColor}
-        anchorX="center"
-        anchorY="bottom"
-      >
-        {STATUS_LABELS[session.status] || session.status}
-      </Text>
+        <Text
+          position={[0, LABEL_Y - 0.2, 0]}
+          fontSize={0.095}
+          color={statusColor}
+          anchorX="center"
+          anchorY="bottom"
+        >
+          {STATUS_LABELS[session.status] || session.status}
+        </Text>
+      </ErrorBoundary3D>
 
       {/* Point light glow */}
       <pointLight
@@ -431,7 +417,6 @@ const RobotAgentAnimated: React.FC<RobotAgentAnimatedProps> = ({
 
   const agentInfo = AGENT_INFO[session.agentType];
   const agentColor = agentInfo.color;
-  const modelPath = ROBOT_MODELS[sessionIndex % 3];
 
   const handleClick = useCallback(() => onClick(session.id), [onClick, session.id]);
 
@@ -480,9 +465,9 @@ const RobotAgentAnimated: React.FC<RobotAgentAnimatedProps> = ({
 
   const statusColor =
     session.status === 'working' ? '#00ff88'
-    : session.status === 'waiting' ? '#f59e0b'
-    : session.status === 'idle' ? '#00ccff'
-    : '#555555';
+      : session.status === 'waiting' ? '#f59e0b'
+        : session.status === 'idle' ? '#00ccff'
+          : '#555555';
 
   const LABEL_Y = 1.85;
 
@@ -494,13 +479,10 @@ const RobotAgentAnimated: React.FC<RobotAgentAnimatedProps> = ({
       onPointerOut={handlePointerOut}
     >
       {/* Robot model */}
-      <React.Suspense fallback={<RobotFallback color={agentColor} />}>
-        <RobotModel
-          modelPath={modelPath}
-          agentColor={agentColor}
-          status={session.status}
-        />
-      </React.Suspense>
+      <ProceduralRobot
+        agentColor={agentColor}
+        status={session.status}
+      />
 
       {/* Status ring */}
       <StatusRing color={agentColor} status={session.status} />
@@ -521,29 +503,30 @@ const RobotAgentAnimated: React.FC<RobotAgentAnimatedProps> = ({
         </mesh>
       )}
 
-      {/* Name label */}
-      <Text
-        position={[0, LABEL_Y, 0]}
-        fontSize={0.14}
-        color="white"
-        anchorX="center"
-        anchorY="bottom"
-        outlineWidth={0.013}
-        outlineColor="#000000"
-      >
-        {session.name}
-      </Text>
+      {/* Name and Status labels */}
+      <ErrorBoundary3D>
+        <Text
+          position={[0, LABEL_Y, 0]}
+          fontSize={0.14}
+          color="white"
+          anchorX="center"
+          anchorY="bottom"
+          outlineWidth={0.013}
+          outlineColor="#000000"
+        >
+          {session.name}
+        </Text>
 
-      {/* Status label */}
-      <Text
-        position={[0, LABEL_Y - 0.2, 0]}
-        fontSize={0.095}
-        color={statusColor}
-        anchorX="center"
-        anchorY="bottom"
-      >
-        {STATUS_LABELS[session.status] || session.status}
-      </Text>
+        <Text
+          position={[0, LABEL_Y - 0.2, 0]}
+          fontSize={0.095}
+          color={statusColor}
+          anchorX="center"
+          anchorY="bottom"
+        >
+          {STATUS_LABELS[session.status] || session.status}
+        </Text>
+      </ErrorBoundary3D>
 
       {/* Point light glow per robot */}
       <pointLight
